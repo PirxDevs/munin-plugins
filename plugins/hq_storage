@@ -1,0 +1,220 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_df_ - Munin plugin to monitor storage usage.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems with df command available. Optional LVM
+storage statistics require lvm2 vgs command.
+
+=head1 CONFIGURATION
+
+It may be required to run this plugin as root to access
+all device informations. You may also configure warning
+and critical thresholds in your munin node configuration:
+
+[hq_storage]
+  user root
+  env.warning 90
+  env.critical 95
+
+Default thresholds are 90% for warning and 95% for critical.
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+
+# Mountpoints starting with these strings will be excluded
+my @excludes = ("/dev", "/proc", "/run", "/sys");
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+need_multigraph();
+
+my %storages;
+my %vgs;
+
+# Read and parse df output
+my $exec_fd;
+if(!open($exec_fd, "df -P -l 2>/dev/null |")) {
+  print("Can't read output of df command\n");
+  exit(1);
+}
+DF_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+  # Exclude header
+  if($line =~ /^Filesystem/) {
+    next(DF_READ_LOOP);
+  }
+  my ($device, $size, $used, $free, $percent, $mountpoint) = $line =~ /^(.*)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)%[ \t]+(.*)$/;
+  EXCLUDES_LOOP: foreach my $exclude (@excludes) {
+    if($mountpoint =~ /^\Q$exclude\E/) {
+      next(DF_READ_LOOP);
+    }
+  }
+  $device =~ s/^\s+|\s+$//g;
+  $storages{$device} = {
+    'size' => $size * 1024,
+    'used' => $used * 1024,
+    'free' => $free * 1024,
+    'reserved' => ($size - $used - $free) * 1024,
+    'mountpoint' => $mountpoint,
+  };
+}
+close($exec_fd);
+
+if(open($exec_fd, "vgs --noheadings --nosuffix --separator=: --units=b --options=vg_name,vg_size,vg_free 2>/dev/null |")) {
+  VGS_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+    $line =~ s/\s//g;
+    my ($vgname, $vgsize, $vgfree) = $line =~ /^(.*):(\d+):(\d+)$/;
+    $vgs{$vgname} = {
+      'size' => $vgsize,
+      'used' => $vgsize - $vgfree,
+      'free' => $vgfree,
+    }
+  }
+  close($exec_fd);
+}
+
+# get warning and critical thresholds
+my $warning = 90;
+my $critical = 95;
+if(defined($ENV{'warning'})) {
+  $warning = $ENV{'warning'};
+}
+if(defined($ENV{'critical'})) {
+  $critical = $ENV{'critical'};
+}
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  foreach my $storage (sort keys %storages) {
+    # set warning and critical thresholds
+    $warning = $storages{$storage}{'size'} * $warning / 100;
+    $critical = $storages{$storage}{'size'} * $critical / 100;
+    # Choose color for graph depending on usage warning levels
+    my $used_color = "0000ff";
+    if($storages{$storage}{'used'} gt $warning) {
+      $used_color = "ff9500";
+    }
+    elsif($storages{$storage}{'used'} gt $critical) {
+      $used_color = "ff0000";
+    }
+    my $storage_name = $storage;
+    $storage_name =~ s!/!_!g;
+    $storage_name =~ s!^_+!!g;
+    print <<EOF;
+multigraph storage_$storage_name
+graph_title $storage ($storages{$storage}{'mountpoint'})
+graph_order reserved used free size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category storage
+
+reserved.label Reserved
+reserved.type GAUGE
+reserved.draw AREASTACK
+reserved.colour ff00ff
+used.label Used
+used.type GAUGE
+used.draw AREASTACK
+used.colour $used_color
+used.line $warning:ffff00:Warning threshold
+used.warning $warning
+used.critical $critical
+free.label Free
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+size.label Size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+EOF
+  }
+  foreach my $vg (sort keys %vgs) {
+    # set warning and critical thresholds
+    $warning = $vgs{$vg}{'size'} * $warning / 100;
+    $critical = $vgs{$vg}{'size'} * $critical / 100;
+    # Choose color for graph depending on usage warning levels
+    my $used_color = "0000ff";
+    if($vgs{$vg}{'used'} gt $warning) {
+      $used_color = "ff9500";
+    }
+    elsif($vgs{$vg}{'used'} gt $critical) {
+      $used_color = "ff0000";
+    }
+    print <<EOF;
+multigraph vg_$vg
+graph_title LVM volume group $vg
+graph_order used free size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category storage
+
+used.label Used
+used.type GAUGE
+used.draw AREASTACK
+used.colour $used_color
+used.line $warning:ffff00:Warning threshold
+used.warning $warning
+used.critical $critical
+free.label Free
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+size.label Size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+EOF
+  }
+}
+
+foreach my $storage (sort keys %storages) {
+  my $storage_name = $storage;
+  $storage_name =~ s!/!_!g;
+  $storage_name =~ s!^_+!!g;
+  print("multigraph storage_" . $storage_name . "\n");
+  print("reserved.value " . $storages{$storage}{'reserved'} . "\n");
+  print("used.value " . $storages{$storage}{'used'} . "\n");
+  print("free.value " . $storages{$storage}{'free'} . "\n");
+  print("size.value " . $storages{$storage}{'size'} . "\n");
+}
+
+foreach my $vg (sort keys %vgs) {
+  print("multigraph vg_" . $vg . "\n");
+  print("used.value " . $vgs{$vg}{'used'} . "\n");
+  print("free.value " . $vgs{$vg}{'free'} . "\n");
+  print("size.value " . $vgs{$vg}{'size'} . "\n");
+}
+
+exit(0);

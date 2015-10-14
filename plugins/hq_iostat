@@ -1,0 +1,136 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_iostat - Munin plugin to monitor disk IO statistics.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems with iostat command available.
+
+=head1 CONFIGURATION
+
+You may need to run this plugin as root to get all devices.
+Just add following to your munin node configuration.
+
+[hq_iostat_*]
+  user root
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+need_multigraph();
+
+my %iodata;
+my $iostat_fd;
+# Read and parse df output
+if(!open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
+  print("Can't read output of iostat command\n");
+  exit(1);
+}
+IOSTAT_READ_LOOP: while(defined(my $line=<$iostat_fd>)) {
+  # Exclude headers
+  if($line =~ /^(Linux|Device|\s)/) {
+    next(IOSTAT_READ_LOOP);
+  }
+  # Exclude ram, loop and cd devices
+  if($line =~ /^(ram|loop|scd|sr)[0-9]/) {
+    next(IOSTAT_READ_LOOP);
+  }
+  my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ /^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
+  $device =~ s/^\s+|\s+$//g;
+  my $device_name = "";
+  # If device is dm-* get friendly name from /sys
+  if($device =~ /^dm-[0-9]/) {
+    $device_name = "/dev/mapper/" . `cat /sys/block/$device/dm/name 2>/dev/null`;
+  }
+  else {
+    $device_name = "/dev/" . $device;
+  }
+  # Get device mountpoint from /proc
+  my $mountpoint = `cat /proc/self/mounts 2>/dev/null | grep -E '^$device_name\\s' 2>/dev/null | cut -d' ' -f 2 2>/dev/null`;
+  chomp($mountpoint);
+  # If mountpoint is empty check if this is swap device
+  if($mountpoint eq "") {
+    my $is_swap = `grep -E '^/dev/$device\\s' /proc/swaps 2>/dev/null`;
+    if($is_swap ne "") {
+      $mountpoint = "swap";
+    }
+  }
+  if($mountpoint ne "") {
+    $mountpoint = " (" . $mountpoint . ")";
+  }
+  $iodata{$device} = {
+    'read' => $kb_read * 1024,
+    'write' => $kb_write * 1024,
+    'name' => $device_name,
+    'mountpoint' => $mountpoint
+  };
+}
+close($iostat_fd);
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  foreach my $device (sort keys %iodata) {
+    my $device_name = $device;
+    print <<EOF;
+multigraph disk_io_$device
+graph_title $iodata{$device}{'name'}$iodata{$device}{'mountpoint'} - read/write
+graph_order read write
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category disk_io
+
+read.label Read
+read.type DERIVE
+read.min 0
+read.draw AREA
+read.colour 00ff00
+write.label Write
+write.type DERIVE
+write.min 0
+write.draw LINE1
+write.colour 0000ff
+
+EOF
+  }
+  exit(0);
+}
+
+foreach my $device (sort keys %iodata) {
+  print("multigraph disk_io_" . $device . "\n");
+  print("read.value " . $iodata{$device}{'read'} . "\n");
+  print("write.value " . $iodata{$device}{'write'} . "\n");
+}
+
+exit(0);
