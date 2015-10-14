@@ -1,0 +1,99 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_loadavg - Munin plugin to monitor system load average.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems.
+
+=head1 CONFIGURATION
+
+You may want to configure warning and critical thresholds
+in your munin node configuration:
+
+[hq_loadavg]
+  env.warning 5
+  env.critical 10
+
+Default thresholds are 5 for warning and 10 for critical.
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+# Get current loadavg
+my $loadavg = `cut -d' ' -f 2 /proc/loadavg 2>/dev/null`;
+chomp($loadavg);
+
+# set warning and critical thresholds
+my $warning = 5;
+my $critical = 10;
+if(defined($ENV{'warning'})) {
+  $warning = $ENV{'warning'};
+}
+if(defined($ENV{'critical'})) {
+  $critical = $ENV{'critical'};
+}
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  # Choose color for graph depending on usage warning levels
+  my $graph_color = "00d000";
+  if($loadavg gt $warning) {
+    $graph_color = "ff8500";
+  }
+  elsif($loadavg gt $critical) {
+    $graph_color = "ff0000";
+  } 
+  print <<EOF;
+graph_title System load average
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_vlabel load
+graph_category system
+
+loadavg.label loadavg
+loadavg.type GAUGE
+loadavg.min 0
+loadavg.draw AREA
+loadavg.colour $graph_color
+loadavg.line $warning:b0b0b0:Warning threshold
+loadavg.warning $warning
+loadavg.critical $critical
+EOF
+  exit(0);
+}
+
+printf("loadavg.value %.2f\n", $loadavg);
+
+exit(0);

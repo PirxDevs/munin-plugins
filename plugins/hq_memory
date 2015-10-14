@@ -1,0 +1,185 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_memory - Munin plugin to monitor memory and swap usage.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems.
+
+=head1 CONFIGURATION
+
+You may want to configure warning and critical thresholds
+in your munin node configuration:
+
+[hq_memory]
+  env.memory_warning 95
+  env.memory_critical 99
+  env.swap_warning 50
+  env.swap_critical 80
+
+Default thresholds for memory usage are 95% for warning
+and 99% for critical. For swap usage they are 50% for
+warning and 80% for critical.
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+need_multigraph();
+
+# Get data from /proc
+my %meminfo;
+my @entries = ("MemTotal", "MemFree", "Buffers", "Cached", "Slab", "PageTables", "SwapTotal", "SwapFree");
+foreach my $entry (@entries) {
+  my $data = `grep -E "^$entry:" /proc/meminfo 2>/dev/null`;
+  ($data) = $data =~ /^\Q$entry\E:[ ]*(\d+)/;
+  $meminfo{$entry} = $data * 1024;
+  undef($data);
+}
+$meminfo{'Apps'} = $meminfo{'MemTotal'} - $meminfo{'MemFree'} - $meminfo{'Buffers'} - $meminfo{'Cached'} - $meminfo{'Slab'} - $meminfo{'PageTables'};
+$meminfo{'MemUsed'} = $meminfo{'Buffers'} + $meminfo{'Cached'} + $meminfo{'Slab'} + $meminfo{'PageTables'} + $meminfo{'Apps'};
+$meminfo{'SwapUsed'} = $meminfo{'SwapTotal'} - $meminfo{'SwapFree'};
+
+# Set warning and critical thresholds
+my $memory_warning = 95;
+my $memory_critical = 99;
+if(defined($ENV{'memory_warning'})) {
+  $memory_warning = $ENV{'memory_warning'};
+}
+if(defined($ENV{'memory_critical'})) {
+  $memory_critical = $ENV{'memory_critical'};
+}
+$memory_warning = $meminfo{'MemTotal'} * $memory_warning / 100;
+$memory_critical = $meminfo{'MemTotal'} * $memory_critical / 100;
+
+my $swap_warning = 50;
+my $swap_critical = 80;
+if(defined($ENV{'swap_warning'})) {
+  $swap_warning = $ENV{'swap_warning'};
+}
+if(defined($ENV{'swap_critical'})) {
+  $swap_critical = $ENV{'swap_critical'};
+}
+
+$swap_warning = $meminfo{'SwapTotal'} * $swap_warning / 100;
+$swap_critical = $meminfo{'SwapTotal'} * $swap_critical / 100;
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  print <<EOF;
+multigraph memory_usage
+graph_title Memory usage
+graph_order apps buffers cached slab pagetables free used size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category memory
+
+apps.label Applications
+apps.type GAUGE
+apps.draw AREASTACK
+apps.colour ff0000
+buffers.label File buffers
+buffers.type GAUGE
+buffers.draw AREASTACK
+buffers.colour ff9500
+cached.label Cache
+cached.type GAUGE
+cached.draw AREASTACK
+cached.colour ff00ff
+slab.label Kernel cache
+slab.type GAUGE
+slab.draw AREASTACK
+slab.colour 0000ff
+pagetables.label Page tables
+pagetables.type GAUGE
+pagetables.draw AREASTACK
+pagetables.colour 00ffff
+free.label Free memory
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+used.label Total usage
+used.type GAUGE
+used.draw LINE1
+used.colour ffffff
+used.line $memory_warning:ffff00:Warning threshold
+used.warning $memory_warning
+used.critical $memory_critical
+size.label Memory size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+
+multigraph swap_usage
+graph_title Swap usage
+graph_order used free size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category memory
+
+used.label Swap used
+used.type GAUGE
+used.draw AREASTACK
+used.colour ff0000
+used.line $swap_warning:ffff00:Warning threshold
+used.warning $swap_warning
+used.critical $swap_critical
+free.label Swap free
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+size.label Swap size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+EOF
+  exit(0);
+}
+
+print("multigraph memory_usage\n");
+print("apps.value " . $meminfo{'Apps'} . "\n");
+print("buffers.value " . $meminfo{'Buffers'} . "\n");
+print("cached.value " . $meminfo{'Cached'} . "\n");
+print("slab.value " . $meminfo{'Slab'} . "\n");
+print("pagetables.value " . $meminfo{'PageTables'} . "\n");
+print("free.value " . $meminfo{'MemFree'} . "\n");
+print("size.value " . $meminfo{'MemTotal'} . "\n");
+print("used.value " . $meminfo{'MemUsed'} . "\n");
+
+print("\nmultigraph swap_usage\n");
+print("used.value " . $meminfo{'SwapUsed'} . "\n");
+print("free.value " . $meminfo{'SwapFree'} . "\n");
+print("size.value " . $meminfo{'SwapTotal'} . "\n");
+
+exit(0);

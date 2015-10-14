@@ -1,0 +1,222 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_cpu - Munin wildcard plugin to monitor swap usage.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems.
+
+=head1 CONFIGURATION
+
+You may want to configure warning and critical thresholds
+in your munin node configuration:
+
+[hq_cpu]
+  env.warning 80
+  env.critical 90
+
+Default thresholds are 80% for warning and 90% for critical.
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+
+sub read_proc_stat;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+need_multigraph();
+
+# Get data from /proc
+my %cpus;
+$cpus{'read_count'} = 0;
+while($cpus{'read_count'} le 1) {
+  read_proc_stat();
+  sleep(1);
+}
+delete($cpus{'read_count'});
+
+my @data_names = ("system", "user", "nice", "iowait", "irq", "softirq", "steal", "guest", "guest_nice", "idle");
+my %data_colors = (
+  'system' => "800000",
+  'user' => "ff0000",
+  'nice' => "ff9500",
+  'iowait' => "ffff00",
+  'irq' => "0000ff",
+  'softirq' => "00aaff",
+  'steal' => "00ffff",
+  'guest' => "ad9300",
+  'guest_nice' => "ad0071",
+  'idle' => "00ff00"
+);
+
+# set warning and critical thresholds
+my $warning = 80;
+my $critical = 90;
+if(defined($ENV{'warning'})) {
+  $warning = $ENV{'warning'};
+}
+if(defined($ENV{'critical'})) {
+  $critical = $ENV{'critical'};
+}
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  my $graph_order = "";
+  foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+    $graph_order .= " cpu" . $cpu_num;
+  }
+  print <<EOF;
+multigraph cpu_usage_all_cores
+graph_title CPU usage - all cores
+graph_args --base 1000 --lower-limit 0 --upper-limit 100
+graph_order$graph_order
+graph_scale no
+graph_vlabel %
+graph_category cpu
+
+EOF
+  foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+    print <<EOF;
+cpu$cpu_num.label CPU core $cpu_num
+cpu$cpu_num.type GAUGE
+cpu$cpu_num.draw LINE
+cpu$cpu_num.min 0
+cpu$cpu_num.max 100
+cpu$cpu_num.warning $warning
+cpu$cpu_num.critical $critical
+EOF
+    if($cpu_num eq 0) {
+      print("cpu" . $cpu_num . ".line " . $warning . ":ffff00:Warning threshold\n");
+    }
+  }
+
+  foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+    print <<EOF;
+
+multigraph cpu_usage_core_$cpu_num
+graph_title CPU usage - core $cpu_num
+graph_args --base 1000 --lower-limit 0 --upper-limit 100
+graph_order system user nice iowait irq softirq steal guest guest_nice idle usage
+graph_scale no
+graph_vlabel %
+graph_category cpu
+
+EOF
+    foreach my $data (@data_names) {
+      print <<EOF;
+$data.label $data
+$data.type GAUGE
+$data.draw AREASTACK
+$data.colour $data_colors{$data}
+EOF
+    }
+  print <<EOF;
+usage.label total usage
+usage.type GAUGE
+usage.draw LINE1
+usage.colour 000000
+usage.line $warning:ffffff:Warning threshold
+usage.warning $warning
+usage.critical $critical
+EOF
+  }
+  exit(0);
+}
+
+print("multigraph cpu_usage_all_cores\n");
+foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+  print("cpu" . $cpu_num . ".value " . $cpus{$cpu_num}{'percentage'} . "\n");
+}
+
+foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+  print("\nmultigraph cpu_usage_core_" . $cpu_num . "\n");
+  foreach my $data (@data_names) {
+    print($data . ".value " . ($cpus{$cpu_num}{'data'}{$data} / $cpus{$cpu_num}{'data'}{'cpu_total'}) * 100 . "\n");
+  }
+  print("usage.value " . ($cpus{$cpu_num}{'data'}{'total_usage'} / $cpus{$cpu_num}{'data'}{'cpu_total'}) * 100 . "\n");
+}
+
+exit(0);
+
+sub read_proc_stat() {
+  my $stat_fd;
+  if(!open($stat_fd, "</proc/stat")) {
+    print("Can't read /proc/stat\n");
+    exit(1);
+  }
+  STAT_READ_LOOP: while(defined(my $line=<$stat_fd>)) {
+    if($line =~ /^cpu\d+\s/) {
+      my ($core_num, $user, $nice, $system, $idle, $iowait, $irq, $softirq, $steal, $guest, $guest_nice) = $line =~ /^cpu(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/;
+      if(defined($cpus{$core_num})) {
+          $cpus{$core_num}{'data'}{'user'} = $user - $cpus{$core_num}{'data'}{'user'};
+          $cpus{$core_num}{'data'}{'nice'} = $nice - $cpus{$core_num}{'data'}{'nice'};
+          $cpus{$core_num}{'data'}{'system'} = $system - $cpus{$core_num}{'data'}{'system'};
+          $cpus{$core_num}{'data'}{'idle'} = $idle - $cpus{$core_num}{'data'}{'idle'};
+          $cpus{$core_num}{'data'}{'iowait'} = $iowait - $cpus{$core_num}{'data'}{'iowait'};
+          $cpus{$core_num}{'data'}{'irq'} = $irq - $cpus{$core_num}{'data'}{'irq'};
+          $cpus{$core_num}{'data'}{'softirq'} = $softirq - $cpus{$core_num}{'data'}{'softirq'};
+          $cpus{$core_num}{'data'}{'steal'} = $steal - $cpus{$core_num}{'data'}{'steal'};
+          $cpus{$core_num}{'data'}{'guest'} = $guest - $cpus{$core_num}{'data'}{'guest'};
+          $cpus{$core_num}{'data'}{'guest_nice'} = $guest_nice - $cpus{$core_num}{'data'}{'guest_nice'};
+        }
+      else {
+        $cpus{$core_num}{'data'} = {
+          'user' => $user || 0,
+          'nice' => $nice || 0,
+          'system' => $system || 0,
+          'idle' => $idle || 0,
+          'iowait' => $iowait || 0,
+          'irq' => $irq || 0,
+          'softirq' => $softirq || 0,
+          'steal' => $steal || 0,
+          'guest' => $guest || 0,
+          'guest_nice' => $guest_nice || 0
+        };
+      }
+    $cpus{$core_num}{'data'}{'total_usage'} = 
+      $cpus{$core_num}{'data'}{'user'} +
+      $cpus{$core_num}{'data'}{'nice'} +
+      $cpus{$core_num}{'data'}{'system'} +
+      $cpus{$core_num}{'data'}{'iowait'} +
+      $cpus{$core_num}{'data'}{'irq'} +
+      $cpus{$core_num}{'data'}{'softirq'} +
+      $cpus{$core_num}{'data'}{'steal'} +
+      $cpus{$core_num}{'data'}{'guest'} +
+      $cpus{$core_num}{'data'}{'guest_nice'};
+    $cpus{$core_num}{'data'}{'cpu_total'} = $cpus{$core_num}{'data'}{'idle'} + $cpus{$core_num}{'data'}{'total_usage'};
+    $cpus{$core_num}{'percentage'} = ($cpus{$core_num}{'data'}{'total_usage'} / $cpus{$core_num}{'data'}{'cpu_total'}) * 100;
+    }
+  }
+  close($stat_fd);
+  $cpus{'read_count'}++;
+}

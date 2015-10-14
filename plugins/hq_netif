@@ -1,0 +1,182 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_netif_ - Munin plugin to monitor network interfaces.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems.
+
+=head1 CONFIGURATION
+
+You may need to run this plugin as root or as special group
+to get all devices and/or their stats (note: group name may
+vary depending on your system configuration).
+
+[hq_netif]
+  user root
+
+or:
+
+[hq_netif]
+  group proc
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+need_multigraph();
+
+my %ifs;
+# Get data from /sys
+my @netifs = glob("/sys/class/net/*");
+@netifs = map(m!/sys/class/net/([^/]+)!, @netifs);
+my @entries = (
+  "rx_bytes",
+  "tx_bytes", 
+  "rx_packets",
+  "tx_packets",
+  "collisions",
+  "rx_dropped",
+  "rx_errors",
+  "tx_dropped",
+  "tx_errors"
+);
+NETIF_LOOP: foreach my $netif (sort @netifs) {
+  # Skip loopback
+  if($netif eq "lo") {
+    next(NETIF_LOOP);
+  }
+  for my $entry (@entries) {
+    $ifs{$netif}{$entry}= `cat /sys/class/net/$netif/statistics/$entry 2>/dev/null` || 0;
+    chomp($ifs{$netif}{$entry});
+  }
+}
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  for my $if (keys %ifs) {
+    print <<EOF;
+multigraph $if\_traffic
+graph_title Traffic on $if
+graph_order rx_bytes tx_bytes
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category netif
+
+rx_bytes.label Incoming traffic
+rx_bytes.type DERIVE
+rx_bytes.min 0
+rx_bytes.draw AREA
+rx_bytes.colour 00ff00
+tx_bytes.label Outgoing traffic
+tx_bytes.type DERIVE
+tx_bytes.min 0
+tx_bytes.draw LINE1
+tx_bytes.colour 0000ff
+
+multigraph $if\_packets
+graph_title Packets on $if
+graph_order rx_packets tx_packets
+graph_args --base 1000 --lower-limit 0
+graph_vlabel packets
+graph_category netif
+
+rx_packets.label Incoming packets
+rx_packets.type DERIVE
+rx_packets.min 0
+rx_packets.draw AREA
+rx_packets.colour 00ff00
+tx_packets.label Outgoing packets
+tx_packets.type DERIVE
+tx_packets.min 0
+tx_packets.draw LINE1
+tx_packets.colour 0000ff
+
+multigraph $if\_errors
+graph_title Errors on $if
+graph_order rx_errors tx_errors rx_dropped tx_dropped collisions
+graph_args --base 1000 --lower-limit 0
+graph_vlabel bytes
+graph_category netif
+
+rx_errors.label RX errors
+rx_errors.type DERIVE
+rx_errors.min 0
+rx_errors.draw AREASTACK
+rx_errors.colour 0000ff
+tx_errors.label TX errors
+tx_errors.type DERIVE
+tx_errors.min 0
+tx_errors.draw AREASTACK
+tx_errors.colour ff00ff
+rx_dropped.label RX dropped
+rx_dropped.type DERIVE
+rx_dropped.min 0
+rx_dropped.draw AREASTACK
+rx_dropped.colour ff0000
+tx_dropped.label TX dropped
+tx_dropped.type DERIVE
+tx_dropped.min 0
+tx_dropped.draw AREASTACK
+tx_dropped.colour ff9500
+collisions.label Collisions
+collisions.type DERIVE
+collisions.min 0
+collisions.draw AREASTACK
+collisions.colour ffff00
+EOF
+    exit(0);
+  }
+}
+
+for my $if (keys %ifs) {
+  print <<EOF;
+multigraph $if\_traffic
+rx_bytes.value $ifs{$if}{'rx_bytes'}
+tx_bytes.value $ifs{$if}{'tx_bytes'}
+
+multigraph $if\_packets
+rx_packets.value $ifs{$if}{'rx_packets'}
+tx_packets.value $ifs{$if}{'tx_packets'}
+
+multigraph $if\_errors
+rx_errors.value $ifs{$if}{'rx_errors'}
+tx_errors.value $ifs{$if}{'tx_errors'}
+rx_dropped.value $ifs{$if}{'rx_dropped'}
+tx_dropped.value $ifs{$if}{'tx_dropped'}
+collisions.value $ifs{$if}{'collisions'}
+EOF
+}
+
+exit(0);

@@ -1,0 +1,246 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+=head1 NAME
+
+hq_memory - Munin plugin to monitor network stats.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems with netstat command available.
+
+=head1 CONFIGURATION
+
+You may need to run this plugin as root or as special group
+to access network stats (note: group name may vary depending
+on your system configuration).
+
+[hq_netstat]
+  user root
+
+or:
+
+[hq_netstat]
+  group proc
+
+=head1 VERSION
+
+  20151014.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+use Data::Dumper;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+#need_multigraph();
+
+my %netstats;
+
+# Read and parse netstat output
+my $exec_fd;
+if(open($exec_fd, "netstat -s 2>/dev/null |")) {
+  READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+    if($line =~ /(\d+) ICMP messages (received|sent)/) {
+      $netstats{'icmp'}{$2} = $1;
+    }
+    if($line =~ /(\d+) input ICMP message failed/) {
+      $netstats{'icmp'}{'received_failed'} = $1;
+    }
+    if($line =~ /(\d+) ICMP messages failed/) {
+      $netstats{'icmp'}{'sent_failed'} = $1;
+    }
+    if($line =~ /(\d+) (active|passive) connection[s]* openings/) {
+      $netstats{'tcp'}{$2} = $1;
+    }
+    if($line =~ /(\d+) failed connection attempts/) {
+      $netstats{'tcp'}{'failed'} = $1;
+    }
+    if($line =~ /(\d+) connection resets received/) {
+      $netstats{'tcp'}{'resets_received'} = $1;
+    }
+    if($line =~ /(\d+) resets sent/) {
+      $netstats{'tcp'}{'resets_sent'} = $1;
+    }
+    if($line =~ /(\d+) connections established/) {
+      $netstats{'tcp'}{'established'} = $1;
+    }
+    if($line =~ /(\d+) packets (received|sent)/) {
+      $netstats{'udp'}{$2} = $1;
+    }
+  }
+  close($exec_fd);
+}
+$netstats{'udp'}{'established'} = `netstat -nu 2>/dev/null | grep "ESTABLISHED" 2>/dev/null | wc -l 2>/dev/null` || 0;
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  print <<EOF;
+multigraph icmp_stats
+graph_title ICMP statistics
+graph_args --base 1000 --lower-limit 0
+graph_order rx tx rx_failed tx_failed
+graph_scale no
+graph_vlabel ICMP messages
+graph_category netstat
+rx.label Received messages
+rx.draw AREASTACK
+rx.colour 0000ff
+rx.type DERIVE
+rx.min 0
+tx.label Sent messages
+tx.draw AREASTACK
+tx.colour ff00ff
+tx.type DERIVE
+tx.min 0
+rx_failed.label Received messages (failed)
+rx_failed.draw LINE1
+rx_failed.colour ff0000
+rx_failed.type DERIVE
+rx_failed.min 0
+tx_failed.label Sent messages (failed)
+tx_failed.draw LINE1
+tx_failed.colour ff9500
+tx_failed.type DERIVE
+tx_failed.min 0
+EOF
+
+  print <<EOF;
+
+multigraph tcp_stats
+graph_title TCP statistics
+graph_args --base 1000 --lower-limit 0
+graph_order active passive failed
+graph_scale no
+graph_vlabel TCP connections
+graph_category netstat
+active.label Active connections
+active.draw AREASTACK
+active.colour 0000ff
+active.type DERIVE
+active.min 0
+passive.label Passive connections
+passive.draw AREASTACK
+passive.colour ff00ff
+passive.type DERIVE
+passive.min 0
+failed.label Failed connections
+failed.draw AREASTACK
+failed.colour ff9500
+failed.type DERIVE
+failed.min 0
+EOF
+
+  print <<EOF;
+
+multigraph tcp_resets
+graph_title TCP resets
+graph_args --base 1000 --lower-limit 0
+graph_order rx tx
+graph_scale no
+graph_vlabel TCP resets
+graph_category netstat
+rx.label Received resets
+rx.draw AREASTACK
+rx.colour 0000ff
+rx.type DERIVE
+rx.min 0
+tx.label Sent resets
+tx.draw AREASTACK
+tx.colour ff00ff
+tx.type DERIVE
+tx.min 0
+EOF
+
+  print <<EOF;
+
+multigraph udp_stats
+graph_title UDP statistics
+graph_args --base 1000 --lower-limit 0
+graph_order rx tx
+graph_scale no
+graph_vlabel UDP packets
+graph_category netstat
+rx.label Received packets
+rx.draw AREASTACK
+rx.colour 0000ff
+rx.type DERIVE
+rx.min 0
+tx.label Sent packets
+tx.draw AREASTACK
+tx.colour ff00ff
+tx.type DERIVE
+rx.min 0
+EOF
+
+  print <<EOF;
+
+multigraph established_connections
+graph_title Established connections
+graph_args --base 1000 --lower-limit 0
+graph_order tcp udp
+graph_scale no
+graph_vlabel connections
+graph_category netstat
+tcp.label TCP connections
+tcp.draw AREASTACK
+tcp.colour 0000ff
+tcp.type GAUGE
+udp.label UDP connections
+udp.draw AREASTACK
+udp.colour ff00ff
+udp.type GAUGE
+EOF
+
+  exit(0);
+}
+
+print <<EOF;
+multigraph icmp_stats
+rx.value $netstats{'icmp'}{'received'}
+tx.value $netstats{'icmp'}{'sent'}
+rx_failed.value $netstats{'icmp'}{'received_failed'}
+tx_failed.value $netstats{'icmp'}{'sent_failed'}
+
+multigraph tcp_stats
+active.value $netstats{'tcp'}{'active'}
+passive.value $netstats{'tcp'}{'passive'}
+failed.value $netstats{'tcp'}{'failed'}
+
+multigraph tcp_resets
+rx.value $netstats{'tcp'}{'resets_received'}
+tx.value $netstats{'tcp'}{'resets_sent'}
+
+multigraph udp_stats
+rx.value $netstats{'udp'}{'received'}
+tx.value $netstats{'udp'}{'sent'}
+
+multigraph established_connections
+tcp.value $netstats{'tcp'}{'established'}
+udp.value $netstats{'udp'}{'established'}
+EOF
+
+exit(0);
