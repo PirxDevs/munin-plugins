@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 # -*- perl -*-
 
 # Copyright (C) 2015 Pirx Developers - https://pirx.dev/
@@ -62,6 +62,7 @@ GPLv3
 =cut
 
 use strict;
+use warnings;
 use Munin::Plugin;
 use Data::Dumper;
 
