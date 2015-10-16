@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 # -*- perl -*-
 
 # Copyright (C) 2015 Pirx Developers - https://pirx.dev/
@@ -59,6 +59,7 @@ GPLv3
 =cut
 
 use strict;
+use warnings;
 
 # Handle autoconf
 if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
