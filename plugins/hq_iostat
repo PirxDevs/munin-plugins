@@ -70,50 +70,56 @@ need_multigraph();
 my %iodata;
 my $iostat_fd;
 # Read and parse df output
-if(!open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
-  print("Can't read output of iostat command\n");
+if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
+  IOSTAT_READ_LOOP: while(defined(my $line=<$iostat_fd>)) {
+    # Exclude headers
+    if($line =~ /^(Linux|Device|\s)/) {
+      next(IOSTAT_READ_LOOP);
+    }
+    # Exclude ram, loop and cd devices
+    if($line =~ /^(ram|loop|scd|sr)[0-9]/) {
+      next(IOSTAT_READ_LOOP);
+    }
+    my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ /^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
+    $device =~ s/^\s+|\s+$//g;
+    my $device_name = "";
+    # If device is dm-* get friendly name from /sys
+    if($device =~ /^dm-[0-9]/) {
+      $device_name = "/dev/mapper/" . `cat /sys/block/$device/dm/name 2>/dev/null`;
+    }
+    else {
+      $device_name = "/dev/" . $device;
+    }
+    # Get device mountpoint from /proc
+    my $mountpoint = `cat /proc/self/mounts 2>/dev/null | grep -E '^$device_name\\s' 2>/dev/null | cut -d' ' -f 2 2>/dev/null`;
+    chomp($mountpoint);
+    # If mountpoint is empty check if this is swap device
+    if($mountpoint eq "") {
+      my $is_swap = `grep -E '^/dev/$device\\s' /proc/swaps 2>/dev/null`;
+      if($is_swap ne "") {
+        $mountpoint = "swap";
+      }
+    }
+    if($mountpoint ne "") {
+      $mountpoint = " (" . $mountpoint . ")";
+    }
+    $iodata{$device} = {
+      'read' => $kb_read * 1024,
+      'write' => $kb_write * 1024,
+      'name' => $device_name,
+      'mountpoint' => $mountpoint
+    };
+  }
+  close($iostat_fd);
+  if($? >> 8 ne 0) {
+    print("Error running iostat. Exiting.\n");
+    exit(1);
+  }
+}
+else {
+  print("Error running iostat. Exiting.\n");
   exit(1);
 }
-IOSTAT_READ_LOOP: while(defined(my $line=<$iostat_fd>)) {
-  # Exclude headers
-  if($line =~ /^(Linux|Device|\s)/) {
-    next(IOSTAT_READ_LOOP);
-  }
-  # Exclude ram, loop and cd devices
-  if($line =~ /^(ram|loop|scd|sr)[0-9]/) {
-    next(IOSTAT_READ_LOOP);
-  }
-  my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ /^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
-  $device =~ s/^\s+|\s+$//g;
-  my $device_name = "";
-  # If device is dm-* get friendly name from /sys
-  if($device =~ /^dm-[0-9]/) {
-    $device_name = "/dev/mapper/" . `cat /sys/block/$device/dm/name 2>/dev/null`;
-  }
-  else {
-    $device_name = "/dev/" . $device;
-  }
-  # Get device mountpoint from /proc
-  my $mountpoint = `cat /proc/self/mounts 2>/dev/null | grep -E '^$device_name\\s' 2>/dev/null | cut -d' ' -f 2 2>/dev/null`;
-  chomp($mountpoint);
-  # If mountpoint is empty check if this is swap device
-  if($mountpoint eq "") {
-    my $is_swap = `grep -E '^/dev/$device\\s' /proc/swaps 2>/dev/null`;
-    if($is_swap ne "") {
-      $mountpoint = "swap";
-    }
-  }
-  if($mountpoint ne "") {
-    $mountpoint = " (" . $mountpoint . ")";
-  }
-  $iodata{$device} = {
-    'read' => $kb_read * 1024,
-    'write' => $kb_write * 1024,
-    'name' => $device_name,
-    'mountpoint' => $mountpoint
-  };
-}
-close($iostat_fd);
 
 # Handle config
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
