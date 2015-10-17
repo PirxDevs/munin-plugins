@@ -40,7 +40,7 @@ or:
 
 =head1 VERSION
 
-  20151017.01
+  20151017.02
 
 =head1 MAGIC MARKERS
 
@@ -172,8 +172,8 @@ collisions.min 0
 collisions.draw AREASTACK
 collisions.colour ffff00
 EOF
-    exit(0);
   }
+  exit(0);
 }
 
 for my $if (keys %ifs) {
