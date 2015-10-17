@@ -70,7 +70,7 @@ GPLv3
 
 =cut
 
-procname=`basename ${0} | sed 's/^hq_ps_//g'`
+procname=`basename ${0} | sed 's/^hq_ps_//g' 2>/dev/null`
 
 if [ "x${1}" = "xautoconf" ]; then
   echo "yes"
@@ -94,6 +94,10 @@ EOF
   exit 0
 fi
 
-procnum=$(ps axc | grep " "${procname}"$" | wc -l)
+procnum=$(ps axc 2>/dev/null | grep " "${procname}"$" 2>/dev/null | wc -l 2>/dev/null)
+if [ $? -ne 0 ]; then
+  echo "Error running ps command. Exiting."
+  exit 1
+fi
 echo "procs.value ${procnum}"
 exit 0
