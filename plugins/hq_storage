@@ -81,31 +81,37 @@ my %vgs;
 
 # Read and parse df output
 my $exec_fd;
-if(!open($exec_fd, "df -P -l 2>/dev/null |")) {
-  print("Can't read output of df command\n");
-  exit(1);
-}
-DF_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
-  # Exclude header
-  if($line =~ /^Filesystem/) {
-    next(DF_READ_LOOP);
-  }
-  my ($device, $size, $used, $free, $percent, $mountpoint) = $line =~ /^(.*)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)%[ \t]+(.*)$/;
-  EXCLUDES_LOOP: foreach my $exclude (@excludes) {
-    if($mountpoint =~ /^\Q$exclude\E/) {
+if(open($exec_fd, "df -P -l 2>/dev/null |")) {
+  DF_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+    # Exclude header
+    if($line =~ /^Filesystem/) {
       next(DF_READ_LOOP);
     }
+    my ($device, $size, $used, $free, $percent, $mountpoint) = $line =~ /^(.*)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)%[ \t]+(.*)$/;
+    EXCLUDES_LOOP: foreach my $exclude (@excludes) {
+      if($mountpoint =~ /^\Q$exclude\E/) {
+        next(DF_READ_LOOP);
+      }
+    }
+    $device =~ s/^\s+|\s+$//g;
+    $storages{$device} = {
+      'size' => $size * 1024,
+      'used' => $used * 1024,
+      'free' => $free * 1024,
+      'reserved' => ($size - $used - $free) * 1024,
+      'mountpoint' => $mountpoint,
+    };
   }
-  $device =~ s/^\s+|\s+$//g;
-  $storages{$device} = {
-    'size' => $size * 1024,
-    'used' => $used * 1024,
-    'free' => $free * 1024,
-    'reserved' => ($size - $used - $free) * 1024,
-    'mountpoint' => $mountpoint,
-  };
+  close($exec_fd);
+  if($? >> 8 ne 0) {
+    print("Error running df command. Exiting.\n");
+    exit(1);
+  }
 }
-close($exec_fd);
+else {
+  print("Error running df command. Exiting.\n");
+  exit(1);
+}
 
 if(open($exec_fd, "vgs --noheadings --nosuffix --separator=: --units=b --options=vg_name,vg_size,vg_free 2>/dev/null |")) {
   VGS_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
@@ -118,6 +124,11 @@ if(open($exec_fd, "vgs --noheadings --nosuffix --separator=: --units=b --options
     }
   }
   close($exec_fd);
+  my $status = $? >> 8;
+  if($status ne 0 and $status ne 127) {
+    print("Error running vgs command. Exiting.\n");
+    exit(1);
+  }
 }
 
 # get warning and critical thresholds
