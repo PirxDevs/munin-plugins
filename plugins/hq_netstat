@@ -108,6 +108,14 @@ if(open($exec_fd, "netstat -s 2>/dev/null |")) {
     }
   }
   close($exec_fd);
+  if($? >> 8 ne 0) {
+    print("Error running netstat. Exiting.\n");
+    exit(1);
+  }
+}
+else {
+  print("Error running netstat. Exiting.\n");
+  exit(1);
 }
 $netstats{'udp'}{'established'} = `netstat -nu 2>/dev/null | grep "ESTABLISHED" 2>/dev/null | wc -l 2>/dev/null` || 0;
 
