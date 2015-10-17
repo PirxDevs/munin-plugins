@@ -40,7 +40,7 @@ Default thresholds are 90% for warning and 95% for critical.
 
 =head1 VERSION
 
-  20151017.01
+  20151017.02
 
 =head1 MAGIC MARKERS
 
@@ -201,7 +201,7 @@ EOF
     }
     print <<EOF;
 multigraph vg_$vg
-graph_title LVM volume group $vg
+graph_title LVM volume group "$vg"
 graph_order used free size
 graph_args --base 1024 --lower-limit 0
 graph_vlabel bytes
@@ -224,6 +224,7 @@ size.draw LINE1
 size.colour 000000
 EOF
   }
+  exit(0);
 }
 
 foreach my $storage (sort keys %storages) {
