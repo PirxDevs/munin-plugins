@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151017.01
+  20151017.02
 
 =head1 MAGIC MARKERS
 
@@ -86,6 +86,7 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
     # If device is dm-* get friendly name from /sys
     if($device =~ /^dm-[0-9]/) {
       $device_name = "/dev/mapper/" . `cat /sys/block/$device/dm/name 2>/dev/null`;
+      chomp($device_name);
     }
     else {
       $device_name = "/dev/" . $device;
