@@ -103,7 +103,7 @@ NETIF_LOOP: foreach my $netif (sort @netifs) {
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
   for my $if (keys %ifs) {
     my $graph_name = $if;
-    $graph_name =~ s![/-\.]!_!g;
+    $graph_name =~ s![/\-\.]!_!g;
     print <<EOF;
 multigraph $graph_name\_traffic
 graph_title Traffic on $if
@@ -180,7 +180,7 @@ EOF
 
 for my $if (keys %ifs) {
   my $graph_name = $if;
-  $graph_name =~ s![/-\.]!_!g;
+  $graph_name =~ s![/\-\.]!_!g;
   print <<EOF;
 multigraph $graph_name\_traffic
 rx_bytes.value $ifs{$if}{'rx_bytes'}
