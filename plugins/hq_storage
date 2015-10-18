@@ -156,7 +156,7 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
       $used_color = "ff0000";
     }
     my $graph_name = $storage;
-    $graph_name =~ s![/-\.]!_!g;
+    $graph_name =~ s![/\-\.]!_!g;
     $graph_name =~ s!^_+!!g;
     print <<EOF;
 multigraph storage_$graph_name
@@ -200,7 +200,7 @@ EOF
       $used_color = "ff0000";
     }
     my $graph_name = $vg;
-    $graph_name =~ s![/-\.]!_!g;
+    $graph_name =~ s![/\-\.]!_!g;
     $graph_name =~ s!^_+!!g;
     print <<EOF;
 multigraph vg_$graph_name
@@ -232,7 +232,7 @@ EOF
 
 foreach my $storage (sort keys %storages) {
   my $graph_name = $storage;
-  $graph_name =~ s![/-\.]!_!g;
+  $graph_name =~ s![/\-\.]!_!g;
   $graph_name =~ s!^_+!!g;
   print("multigraph storage_" . $graph_name . "\n");
   print("reserved.value " . $storages{$storage}{'reserved'} . "\n");
@@ -243,7 +243,7 @@ foreach my $storage (sort keys %storages) {
 
 foreach my $vg (sort keys %vgs) {
   my $graph_name = $vg;
-  $graph_name =~ s![/-\.]!_!g;
+  $graph_name =~ s![/\-\.]!_!g;
   $graph_name =~ s!^_+!!g;
   print("multigraph vg_" . $graph_name . "\n");
   print("used.value " . $vgs{$vg}{'used'} . "\n");
