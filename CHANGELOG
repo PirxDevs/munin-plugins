@@ -1,2 +1,7 @@
+* 20151018.01
+  - fixed config in netif and storage plugins
+  - fixed mountpoint resolving in iostat plugin
+  - fixed multigraph names in iostat, netif and storage plugins
+
 * 20151017
   - initial release
