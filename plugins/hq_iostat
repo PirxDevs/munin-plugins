@@ -29,12 +29,12 @@ Linux systems with iostat command available.
 You may need to run this plugin as root to get all devices.
 Just add following to your munin node configuration.
 
-[hq_iostat_*]
+[hq_iostat]
   user root
 
 =head1 VERSION
 
-  20151017.02
+  20151018.01
 
 =head1 MAGIC MARKERS
 
@@ -125,9 +125,10 @@ else {
 # Handle config
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
   foreach my $device (sort keys %iodata) {
-    my $device_name = $device;
+    my $graph_name = "disk_io_" . $device;
+    $graph_name =~ s![/-\.]!_!g;
     print <<EOF;
-multigraph disk_io_$device
+multigraph $graph_name
 graph_title $iodata{$device}{'name'}$iodata{$device}{'mountpoint'} - read/write
 graph_order read write
 graph_args --base 1024 --lower-limit 0
@@ -151,7 +152,9 @@ EOF
 }
 
 foreach my $device (sort keys %iodata) {
-  print("multigraph disk_io_" . $device . "\n");
+  my $graph_name = "disk_io_" . $device;
+  $graph_name =~ s![/-\.]!_!g;
+  print("multigraph " . $graph_name . "\n");
   print("read.value " . $iodata{$device}{'read'} . "\n");
   print("write.value " . $iodata{$device}{'write'} . "\n");
 }

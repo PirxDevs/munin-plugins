@@ -40,7 +40,7 @@ or:
 
 =head1 VERSION
 
-  20151017.02
+  20151018.01
 
 =head1 MAGIC MARKERS
 
@@ -102,10 +102,10 @@ NETIF_LOOP: foreach my $netif (sort @netifs) {
 # Handle config
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
   for my $if (keys %ifs) {
-    my $if_esc = $if;
-    $if_esc =~ s/\./_/g;
+    my $graph_name = $if;
+    $graph_name =~ s![/-\.]!_!g;
     print <<EOF;
-multigraph $if_esc\_traffic
+multigraph $graph_name\_traffic
 graph_title Traffic on $if
 graph_order rx_bytes tx_bytes
 graph_args --base 1024 --lower-limit 0
@@ -123,7 +123,7 @@ tx_bytes.min 0
 tx_bytes.draw LINE1
 tx_bytes.colour 0000ff
 
-multigraph $if_esc\_packets
+multigraph $graph_name\_packets
 graph_title Packets on $if
 graph_order rx_packets tx_packets
 graph_args --base 1000 --lower-limit 0
@@ -141,7 +141,7 @@ tx_packets.min 0
 tx_packets.draw LINE1
 tx_packets.colour 0000ff
 
-multigraph $if_esc\_errors
+multigraph $graph_name\_errors
 graph_title Errors on $if
 graph_order rx_errors tx_errors rx_dropped tx_dropped collisions
 graph_args --base 1000 --lower-limit 0
@@ -179,18 +179,18 @@ EOF
 }
 
 for my $if (keys %ifs) {
-  my $if_esc = $if;
-  $if_esc =~ s/\./_/g;
+  my $graph_name = $if;
+  $graph_name =~ s![/-\.]!_!g;
   print <<EOF;
-multigraph $if_esc\_traffic
+multigraph $graph_name\_traffic
 rx_bytes.value $ifs{$if}{'rx_bytes'}
 tx_bytes.value $ifs{$if}{'tx_bytes'}
 
-multigraph $if_esc\_packets
+multigraph $graph_name\_packets
 rx_packets.value $ifs{$if}{'rx_packets'}
 tx_packets.value $ifs{$if}{'tx_packets'}
 
-multigraph $if_esc\_errors
+multigraph $graph_name\_errors
 rx_errors.value $ifs{$if}{'rx_errors'}
 tx_errors.value $ifs{$if}{'tx_errors'}
 rx_dropped.value $ifs{$if}{'rx_dropped'}
