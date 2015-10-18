@@ -40,7 +40,7 @@ Default thresholds are 90% for warning and 95% for critical.
 
 =head1 VERSION
 
-  20151017.02
+  20151018.01
 
 =head1 MAGIC MARKERS
 
@@ -155,11 +155,11 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
     elsif($storages{$storage}{'used'} gt $critical) {
       $used_color = "ff0000";
     }
-    my $storage_name = $storage;
-    $storage_name =~ s!/!_!g;
-    $storage_name =~ s!^_+!!g;
+    my $graph_name = $storage;
+    $graph_name =~ s![/-\.]!_!g;
+    $graph_name =~ s!^_+!!g;
     print <<EOF;
-multigraph storage_$storage_name
+multigraph storage_$graph_name
 graph_title $storage ($storages{$storage}{'mountpoint'})
 graph_order reserved used free size
 graph_args --base 1024 --lower-limit 0
@@ -199,13 +199,16 @@ EOF
     elsif($vgs{$vg}{'used'} gt $critical) {
       $used_color = "ff0000";
     }
+    my $graph_name = $vg;
+    $graph_name =~ s![/-\.]!_!g;
+    $graph_name =~ s!^_+!!g;
     print <<EOF;
-multigraph vg_$vg
-graph_title LVM volume group "$vg"
+multigraph vg_$graph_name
+graph_title LVM VG "$vg"
 graph_order used free size
 graph_args --base 1024 --lower-limit 0
 graph_vlabel bytes
-graph_category storage
+graph_category lvm
 
 used.label Used
 used.type GAUGE
@@ -228,10 +231,10 @@ EOF
 }
 
 foreach my $storage (sort keys %storages) {
-  my $storage_name = $storage;
-  $storage_name =~ s!/!_!g;
-  $storage_name =~ s!^_+!!g;
-  print("multigraph storage_" . $storage_name . "\n");
+  my $graph_name = $storage;
+  $graph_name =~ s![/-\.]!_!g;
+  $graph_name =~ s!^_+!!g;
+  print("multigraph storage_" . $graph_name . "\n");
   print("reserved.value " . $storages{$storage}{'reserved'} . "\n");
   print("used.value " . $storages{$storage}{'used'} . "\n");
   print("free.value " . $storages{$storage}{'free'} . "\n");
@@ -239,7 +242,10 @@ foreach my $storage (sort keys %storages) {
 }
 
 foreach my $vg (sort keys %vgs) {
-  print("multigraph vg_" . $vg . "\n");
+  my $graph_name = $vg;
+  $graph_name =~ s![/-\.]!_!g;
+  $graph_name =~ s!^_+!!g;
+  print("multigraph vg_" . $graph_name . "\n");
   print("used.value " . $vgs{$vg}{'used'} . "\n");
   print("free.value " . $vgs{$vg}{'free'} . "\n");
   print("size.value " . $vgs{$vg}{'size'} . "\n");
