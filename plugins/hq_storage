@@ -40,7 +40,7 @@ Default thresholds are 90% for warning and 95% for critical.
 
 =head1 VERSION
 
-  20151018.01
+  20151018.02
 
 =head1 MAGIC MARKERS
 
@@ -132,21 +132,21 @@ if(open($exec_fd, "vgs --noheadings --nosuffix --separator=: --units=b --options
 }
 
 # get warning and critical thresholds
-my $warning = 90;
-my $critical = 95;
+my $warning_level = 90;
+my $critical_level = 95;
 if(defined($ENV{'warning'})) {
-  $warning = $ENV{'warning'};
+  $warning_level = $ENV{'warning'};
 }
 if(defined($ENV{'critical'})) {
-  $critical = $ENV{'critical'};
+  $critical_level = $ENV{'critical'};
 }
 
 # Handle config
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
   foreach my $storage (sort keys %storages) {
     # set warning and critical thresholds
-    $warning = $storages{$storage}{'size'} * $warning / 100;
-    $critical = $storages{$storage}{'size'} * $critical / 100;
+    my $warning = $storages{$storage}{'size'} * $warning_level / 100;
+    my $critical = $storages{$storage}{'size'} * $critical_level / 100;
     # Choose color for graph depending on usage warning levels
     my $used_color = "0000ff";
     if($storages{$storage}{'used'} gt $warning) {
@@ -185,12 +185,13 @@ size.label Size
 size.type GAUGE
 size.draw LINE1
 size.colour 000000
+
 EOF
   }
   foreach my $vg (sort keys %vgs) {
     # set warning and critical thresholds
-    $warning = $vgs{$vg}{'size'} * $warning / 100;
-    $critical = $vgs{$vg}{'size'} * $critical / 100;
+    my $warning = $vgs{$vg}{'size'} * $warning_level / 100;
+    my $critical = $vgs{$vg}{'size'} * $critical_level / 100;
     # Choose color for graph depending on usage warning levels
     my $used_color = "0000ff";
     if($vgs{$vg}{'used'} gt $warning) {
@@ -225,6 +226,7 @@ size.label Size
 size.type GAUGE
 size.draw LINE1
 size.colour 000000
+
 EOF
   }
   exit(0);
