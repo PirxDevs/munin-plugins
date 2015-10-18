@@ -152,7 +152,7 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
     if($storages{$storage}{'used'} gt $warning) {
       $used_color = "ff9500";
     }
-    elsif($storages{$storage}{'used'} gt $critical) {
+    if($storages{$storage}{'used'} gt $critical) {
       $used_color = "ff0000";
     }
     my $graph_name = $storage;
@@ -197,7 +197,7 @@ EOF
     if($vgs{$vg}{'used'} gt $warning) {
       $used_color = "ff9500";
     }
-    elsif($vgs{$vg}{'used'} gt $critical) {
+    if($vgs{$vg}{'used'} gt $critical) {
       $used_color = "ff0000";
     }
     my $graph_name = $vg;
