@@ -216,7 +216,7 @@ tx.label Sent packets
 tx.draw AREASTACK
 tx.colour ff00ff
 tx.type DERIVE
-rx.min 0
+tx.min 0
 EOF
 
   print <<EOF;
