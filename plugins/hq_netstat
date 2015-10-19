@@ -108,7 +108,7 @@ if(open($exec_fd, "netstat -s 2>/dev/null |")) {
     }
   }
   close($exec_fd);
-  if($? >> 8 ne 0) {
+  if($? >> 8 != 0) {
     print("Error running netstat. Exiting.\n");
     exit(1);
   }

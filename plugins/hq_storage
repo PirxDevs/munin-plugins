@@ -103,7 +103,7 @@ if(open($exec_fd, "df -P -l 2>/dev/null |")) {
     };
   }
   close($exec_fd);
-  if($? >> 8 ne 0) {
+  if($? >> 8 != 0) {
     print("Error running df command. Exiting.\n");
     exit(1);
   }
@@ -125,7 +125,7 @@ if(open($exec_fd, "vgs --noheadings --nosuffix --separator=: --units=b --options
   }
   close($exec_fd);
   my $status = $? >> 8;
-  if($status ne 0 and $status ne 127) {
+  if($status != 0 and $status != 127) {
     print("Error running vgs command. Exiting.\n");
     exit(1);
   }
@@ -149,10 +149,10 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
     my $critical = $storages{$storage}{'size'} * $critical_level / 100;
     # Choose color for graph depending on usage warning levels
     my $used_color = "0000ff";
-    if($storages{$storage}{'used'} gt $warning) {
+    if($storages{$storage}{'used'} > $warning) {
       $used_color = "ff9500";
     }
-    if($storages{$storage}{'used'} gt $critical) {
+    if($storages{$storage}{'used'} > $critical) {
       $used_color = "ff0000";
     }
     my $graph_name = $storage;
@@ -194,10 +194,10 @@ EOF
     my $critical = $vgs{$vg}{'size'} * $critical_level / 100;
     # Choose color for graph depending on usage warning levels
     my $used_color = "0000ff";
-    if($vgs{$vg}{'used'} gt $warning) {
+    if($vgs{$vg}{'used'} > $warning) {
       $used_color = "ff9500";
     }
-    if($vgs{$vg}{'used'} gt $critical) {
+    if($vgs{$vg}{'used'} > $critical) {
       $used_color = "ff0000";
     }
     my $graph_name = $vg;
