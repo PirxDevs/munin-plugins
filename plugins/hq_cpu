@@ -131,7 +131,7 @@ cpu$cpu_num.max 100
 cpu$cpu_num.warning $warning
 cpu$cpu_num.critical $critical
 EOF
-    if($cpu_num eq 0) {
+    if($cpu_num == 0) {
       print("cpu" . $cpu_num . ".line " . $warning . ":ffff00:Warning threshold\n");
     }
   }

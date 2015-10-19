@@ -85,10 +85,10 @@ if(defined($ENV{'critical'})) {
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
   # Choose color for graph depending on usage warning levels
   my $graph_color = "00d000";
-  if($loadavg gt $warning) {
+  if($loadavg > $warning) {
     $graph_color = "ff8500";
   }
-  if($loadavg gt $critical) {
+  if($loadavg > $critical) {
     $graph_color = "ff0000";
   } 
   print <<EOF;

@@ -112,7 +112,7 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
     };
   }
   close($iostat_fd);
-  if($? >> 8 ne 0) {
+  if($? >> 8 != 0) {
     print("Error running iostat. Exiting.\n");
     exit(1);
   }
