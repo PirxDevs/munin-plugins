@@ -1,6 +1,7 @@
 * 20151019.01
-  - fix graph colors in loadavg and storage plugins when critical threshold is
-    exceeded
+  - fixed graph colors in loadavg and storage plugins when critical threshold
+    is exceeded
+  - fixed numeric comparisons
 
 * 20151018.02
   - fixed warning/critical levels in storage plugin
