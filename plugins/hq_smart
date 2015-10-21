@@ -294,7 +294,6 @@ start_stop_cycles.label Start/Stop cycles
 start_stop_cycles.type GAUGE
 start_stop_cycles.draw LINE2
 start_stop_cycles.colour 000080
-start_stop_cycles.critical 1
 EOF
       }
       if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'power_cycles'})) {
@@ -307,7 +306,6 @@ start_stop_cycles.label Start/Stop cycles
 start_stop_cycles.type GAUGE
 start_stop_cycles.draw LINE2
 start_stop_cycles.colour 000080
-start_stop_cycles.critical 1
 EOF
       }
     }
