@@ -77,7 +77,7 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
       next(IOSTAT_READ_LOOP);
     }
     # Exclude ram, loop and cd devices
-    if($line =~ /^(ram|loop|scd|sr)[0-9]/) {
+    if($line =~ /^(fd|loop|ram|scd|sr)[0-9]/) {
       next(IOSTAT_READ_LOOP);
     }
     my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ /^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
