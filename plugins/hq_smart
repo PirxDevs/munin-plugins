@@ -136,7 +136,7 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
       if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (defined($disks{$id}{'smart'}{'196'}{'raw'}) or defined($disks{$id}{'smart'}{'5'}{'raw'}) or defined($disks{$id}{'smart'}{'197'}{'raw'}) or defined($disks{$id}{'smart'}{'198'}{'raw'}) or defined($disks{$id}{'smart'}{'10'}{'raw'}) or defined($disks{$id}{'smart'}{'11'}{'raw'}))) {
         print <<EOF;
 multigraph disk_errors_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel errors
@@ -200,7 +200,7 @@ EOF
       if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'defects'})) {
         print <<EOF;
 multigraph disk_errors_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel defects
@@ -215,7 +215,7 @@ EOF
       if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'194'}{'raw'})) {
         print <<EOF;
 multigraph disk_temperature_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel degrees celsius
@@ -246,7 +246,7 @@ EOF
       if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'temperature'})) {
         print <<EOF;
 multigraph disk_temperature_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel degrees celsius
@@ -279,7 +279,7 @@ EOF
         $graph_label =~ s/_/ /g;
         print <<EOF;
 multigraph disk_poh_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel time
@@ -293,7 +293,7 @@ EOF
       if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'4'}{'raw'})) {
         print <<EOF;
 multigraph disk_power_cycles_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel cycles
@@ -307,7 +307,7 @@ EOF
       if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'power_cycles'})) {
         print <<EOF;
 multigraph disk_power_cycles_$graph_name
-graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_title $disks{$id}{'model'} - S/N: $disks{$id}{'serial'}
 graph_args --base 1000 --lower-limit 0
 graph_scale no
 graph_vlabel cycles
