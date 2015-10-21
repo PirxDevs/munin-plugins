@@ -1,0 +1,451 @@
+#!/usr/bin/perl
+# -*- perl -*-
+
+# Copyright (C) 2015 Pirx Developers - https://pirx.dev/
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=head1 NAME
+
+hq_smart - Munin plugin to monitor disk S.M.A.R.T. attributes
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems with smartctl command available.
+
+=head1 CONFIGURATION
+
+This plugin must be run as root so smartctl can access disk devices.
+Just add following to your munin node configuration.
+
+[hq_smart]
+  user root
+
+=head1 VERSION
+
+  20151021.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv3
+
+=cut
+
+use strict;
+use warnings;
+#use Munin::Plugin;
+
+sub read_smart;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+#need_multigraph();
+
+my %disks;
+my %smart_data;
+my %raid_devices;
+my @block_devs = glob("/sys/block/*");
+@block_devs = map(m!/sys/block/([^/]+)!, @block_devs);
+
+BLOCK_DEVS_LOOP: foreach my $block_dev (@block_devs) {
+  if($block_dev =~ /^(ram[0-9]|loop[0-9]|md[0-9]|dm\-[0-9])/) {
+    next(BLOCK_DEVS_LOOP);
+  }
+  my $status = read_smart("/dev/" . $block_dev, "", ""); 
+  if($status == 127 or $status == -1) {
+    print("Error running smartctl. Exiting.\n");
+    exit(1);
+  }
+  if(defined($smart_data{'raid'})) {
+    $raid_devices{"/dev/" . $block_dev} = $smart_data{'raid'};
+  }
+  if(defined($smart_data{'serial'})) {
+    $disks{$smart_data{'serial'}} = { %smart_data };
+  }
+}
+
+foreach my $device (keys %raid_devices) {
+  if($raid_devices{$device} eq "megaraid") {
+    my $sub_device = 0;
+    my $status = 0;
+    do {
+      $status = read_smart($device, "megaraid", $sub_device);
+      if($status == 127 or $status == -1) {
+        print("Error running smartctl. Exiting.\n");
+        exit(1);
+      }    
+      if(defined($smart_data{'serial'})) {
+        $disks{$smart_data{'serial'}} = { %smart_data };
+      }
+      $sub_device++;
+    } while ($status == 0);
+  }
+  if($raid_devices{$device} eq "3ware") {
+    my @twa_devs = glob("/dev/twa[0-9]*");
+    foreach my $twa_dev (sort @twa_devs) {
+      my $sub_device = 0;
+      my $status = 0;
+      do {
+        $status = read_smart($twa_dev, "3ware", $sub_device);
+        if($status == 127 or $status == -1) {
+          print("Error running smartctl. Exiting.\n");
+          exit(1);
+        }    
+        if(defined($smart_data{'serial'})) {
+          $disks{$smart_data{'serial'}} = { %smart_data };
+        }
+        $sub_device++;
+      } while ($status == 0);    
+    }
+  }
+}
+
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  foreach my $id (keys %disks) {
+    my $graph_name = $id;
+    $graph_name =~ s/[^a-zA-Z0-9]/_/g;
+    if(defined($disks{$id}{'type'})) {
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (defined($disks{$id}{'smart'}{'196'}{'raw'}) or defined($disks{$id}{'smart'}{'5'}{'raw'}) or defined($disks{$id}{'smart'}{'197'}{'raw'}) or defined($disks{$id}{'smart'}{'198'}{'raw'}) or defined($disks{$id}{'smart'}{'10'}{'raw'}) or defined($disks{$id}{'smart'}{'11'}{'raw'}))) {
+        print <<EOF;
+multigraph disk_errors_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_category disk_smart
+EOF
+        if(defined($disks{$id}{'smart'}{'196'}{'raw'})) {
+          print <<EOF;
+reallocation_events.label Reallocation events
+reallocation_events.type GAUGE
+reallocation_events.draw LINE2
+reallocation_events.colour ff9500
+reallocation_events.critical 1
+EOF
+        }
+        if(defined($disks{$id}{'smart'}{'5'}{'raw'})) {
+          print <<EOF;
+reallocated_sectors.label Reallocated sectors
+reallocated_sectors.type GAUGE
+reallocated_sectors.draw LINE2
+reallocated_sectors.colour ff0000
+reallocated_sectors.critical 1
+EOF
+        }
+        if(defined($disks{$id}{'smart'}{'197'}{'raw'})) {
+          print <<EOF;
+pending_sectors.label Pending sectors
+pending_sectors.type GAUGE
+pending_sectors.draw LINE2
+pending_sectors.colour 00ffff
+pending_sectors.critical 1
+EOF
+        }
+        if(defined($disks{$id}{'smart'}{'198'}{'raw'})) {
+          print <<EOF;
+uncorrectable_sectors.label Uncorrectable sectors
+uncorrectable_sectors.type GAUGE
+uncorrectable_sectors.draw LINE2
+uncorrectable_sectors.colour 900000
+uncorrectable_sectors.critical 1
+EOF
+        }
+        if(defined($disks{$id}{'smart'}{'10'}{'raw'})) {
+          print <<EOF;
+spin_retries.label Spin retries
+spin_retries.type GAUGE
+spin_retries.draw LINE2
+spin_retries.colour 0000ff
+spin_retries.critical 1
+EOF
+        }
+        if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
+          print <<EOF;
+calibration_retries.label Calibration retries
+calibration_retries.type GAUGE
+calibration_retries.draw LINE2
+calibration_retries.colour 00ffff
+calibration_retries.critical 1
+EOF
+        }
+      }
+      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'defects'})) {
+        print <<EOF;
+multigraph disk_errors_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_category disk_smart
+defects.label Elements in defect list
+defects.type GAUGE
+defects.draw LINE2
+defects.colour ff0000
+defects.critical 1
+EOF
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'194'}{'raw'})) {
+        print <<EOF;
+multigraph disk_temperature_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_vlabel degrees celsius
+graph_category disk_smart
+EOF
+        if(defined($disks{$id}{'smart'}{'194'}{'raw'})) {
+          my $graph_color = "00ff00";
+          if($disks{$id}{'smart'}{'194'}{'raw'} < 25) {
+            $graph_color = "0000ff";
+          }
+          if($disks{$id}{'smart'}{'194'}{'raw'} > 40) {
+            $graph_color = "ff9500";
+          }
+          if($disks{$id}{'smart'}{'194'}{'raw'} > 50) {
+            $graph_color = "ff0000";
+          }
+          print <<EOF;
+temperature.label Disk temperature
+temperature.type GAUGE
+temperature.draw LINE2
+temperature.colour $graph_color
+temperature.line 40:ffff00:Warning threshold
+temperature.warning 40
+temperature.critical 50
+EOF
+        }
+      }
+      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'temperature'})) {
+        print <<EOF;
+multigraph disk_temperature_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_vlabel degrees celsius
+graph_category disk_smart
+EOF
+        if(defined($disks{$id}{'temperature'})) {
+          my $graph_color = "00ff00";
+          if($disks{$id}{'temperature'} < 25) {
+            $graph_color = "0000ff";
+          }
+          if($disks{$id}{'temperature'} > 40) {
+            $graph_color = "ff9500";
+          }
+          if($disks{$id}{'temperature'} > 50) {
+            $graph_color = "ff0000";
+          }
+          print <<EOF;
+temperature.label Disk temperature
+temperature.type GAUGE
+temperature.draw LINE2
+temperature.colour $graph_color
+temperature.line 40:ffff00:Warning threshold
+temperature.warning 40
+temperature.critical 50
+EOF
+        }
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'9'}{'raw'})) {
+        my $graph_label = $disks{$id}{'smart'}{'9'}{'name'};
+        $graph_label =~ s/_/ /g;
+        print <<EOF;
+multigraph disk_poh_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_vlabel days
+graph_category disk_smart
+power_on_time.label $graph_label
+power_on_time.type GAUGE
+power_on_time.draw AREA
+power_on_time.colour 00d000
+EOF
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'4'}{'raw'})) {
+        print <<EOF;
+multigraph disk_power_cycles_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_vlabel days
+graph_category disk_smart
+start_stop_cycles.label Start/Stop cycles
+start_stop_cycles.type GAUGE
+start_stop_cycles.draw LINE2
+start_stop_cycles.colour 000080
+start_stop_cycles.critical 1
+EOF
+      }
+      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'power_cycles'})) {
+        print <<EOF;
+multigraph disk_power_cycles_$graph_name
+graph_title $disks{$id}{'model'} - S/N $disks{$id}{'serial'}
+graph_args --base 1000 --lower-limit 0
+graph_category disk_smart
+start_stop_cycles.label Start/Stop cycles
+start_stop_cycles.type GAUGE
+start_stop_cycles.draw LINE2
+start_stop_cycles.colour 000080
+start_stop_cycles.critical 1
+EOF
+      }
+    }
+  }
+  exit(0);
+}
+
+foreach my $id (keys %disks) {
+  my $graph_name = $id;
+  $graph_name =~ s/[^a-zA-Z0-9]/_/g;
+  if(defined($disks{$id}{'type'})) {
+    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (defined($disks{$id}{'smart'}{'196'}{'raw'}) or defined($disks{$id}{'smart'}{'5'}{'raw'}) or defined($disks{$id}{'smart'}{'197'}{'raw'}) or defined($disks{$id}{'smart'}{'198'}{'raw'}) or defined($disks{$id}{'smart'}{'10'}{'raw'}) or defined($disks{$id}{'smart'}{'11'}{'raw'}))) {
+        print("multigraph disk_errors_$graph_name\n");
+        if(defined($disks{$id}{'smart'}{'196'}{'raw'})) {
+          print("reallocation_events.value " . $disks{$id}{'smart'}{'196'}{'raw'} . "\n");
+        }
+        if(defined($disks{$id}{'smart'}{'5'}{'raw'})) {
+          print("reallocated_sectors.value " . $disks{$id}{'smart'}{'5'}{'raw'} . "\n");
+        }
+        if(defined($disks{$id}{'smart'}{'197'}{'raw'})) {
+          print("pending_sectors.value " . $disks{$id}{'smart'}{'197'}{'raw'} . "\n");
+        }
+        if(defined($disks{$id}{'smart'}{'198'}{'raw'})) {
+          print("uncorrectable_sectors.value " . $disks{$id}{'smart'}{'198'}{'raw'} . "\n");
+        }
+        if(defined($disks{$id}{'smart'}{'10'}{'raw'})) {
+          print("spin_retries.value " . $disks{$id}{'smart'}{'10'}{'raw'} . "\n");
+        }
+        if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
+          print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
+        }
+      }
+      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'defects'})) {
+        print("multigraph disk_errors_$graph_name\n");
+        print("defects.value " . $disks{$id}{'defects'} . "\n");
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'194'}{'raw'})) {
+        print("multigraph disk_temperature_$graph_name\n");
+        if(defined($disks{$id}{'smart'}{'194'}{'raw'})) {
+          print("temperature.value " . $disks{$id}{'smart'}{'194'}{'raw'} . "\n");
+        }
+      }
+      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'temperature'})) {
+        print("multigraph disk_temperature_$graph_name\n");
+        if(defined($disks{$id}{'temperature'})) {
+          print("temperature.value " . $disks{$id}{'temperature'} . "\n");
+        }
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'9'}{'raw'})) {
+        print("multigraph disk_poh_$graph_name\n");
+        print("power_on_time.value " . $disks{$id}{'smart'}{'9'}{'raw'} . "\n");
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'4'}{'raw'})) {
+        print("multigraph disk_power_cycles_$graph_name\n");
+        print("start_stop_cycles.value " . $disks{$id}{'smart'}{'4'}{'raw'} . "\n");
+      }
+      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'power_cycles'})) {
+        print("multigraph disk_power_cycles_$graph_name\n");
+        print("start_stop_cycles.value " . $disks{$id}{'power_cycles'} . "\n");
+      }
+    }
+  }
+
+exit(0);
+
+sub read_smart() {
+  my ($device, $type, $disk) = @_;
+  my $exec_fd;
+  my $params = "-i -A";
+  if($type ne "" and $disk ne "") {
+    $params .= " -d " . $type . "," . $disk;
+  }
+  $params .= " " . $device;
+  %smart_data = ();
+  if(open($exec_fd, "smartctl " . $params . " 2>/dev/null |")) {
+    SMARTCTL_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+      if($line =~ /please try adding '-d (.*),N'/) {
+        if($1 eq "megaraid") {
+          $smart_data{'raid'} = "megaraid";
+        }
+        if($1 eq "3ware") {
+          $smart_data{'raid'} = "3ware";
+        }
+      }
+      if($line =~ /^ATA Version is:\s+(.*)$/) {
+        $smart_data{'sata_version'} = $1;
+        $smart_data{'type'} = "ATA";
+      }
+      if($line =~ /^SATA Version is:\s+(.*)$/) {
+        $smart_data{'sata_version'} = $1;
+        $smart_data{'type'} = "SATA";
+      }
+      if($line =~ /^Transport protocol:\s+(.*)$/) {
+        $smart_data{'type'} = $1;
+      }
+      if($line =~ /^Model Family:\s+(.*)$/) {
+        $smart_data{'family'} = $1;
+      }
+      if($line =~ /^Vendor:\s+(.*)$/) {
+        $smart_data{'vendor'} = $1;
+      }
+      if($line =~ /^(Device Model|Product):\s+(.*)$/) {
+        $smart_data{'model'} = $2;
+      }
+      if($line =~ /^Serial Number:\s+(.*)$/i) {
+        $smart_data{'serial'} = $1;
+      }
+      if($line =~ /^User Capacity:\s+(.*)$/) {
+        $smart_data{'capacity'} = $1;
+      }
+      if($line =~ /^Rotation Rate:\s+(.*)$/) {
+        $smart_data{'rpm'} = $1;
+      }
+      if($line =~ /^(Firmware Version|Revision):\s+(.*)$/) {
+        $smart_data{'firmware'} = $2;
+      }
+      if($line =~ /^Manufactured in\s+(.*)$/) {
+        $smart_data{'manufactured'} = $1;
+      }
+      if($line =~ /^Current Drive Temperature:\s+(.*)$/) {
+        $smart_data{'temperature'} = $1;
+        $smart_data{'temperature'} =~ s/[^0-9]//g;
+      }
+      if($line =~ /^Accumulated start-stop cycles:\s+(.*)$/) {
+        $smart_data{'power_cycles'} = $1;
+      }
+      if($line =~ /^Elements in grown defect list:\s+(.*)$/) {
+        $smart_data{'defects'} = $1;
+      }
+      if($line =~ /^\s*([0-9]+)\s+([^\s]+)\s+([0-9a-fx]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([0-9]+)/) {
+        $smart_data{'smart'}{$1}{'name'} = $2;
+        $smart_data{'smart'}{$1}{'raw'} = $10;
+        $smart_data{'smart'}{$1}{'name'} =~ s/\s+//g;
+      }
+    }
+    close($exec_fd);
+    my $exit_code = $? >> 8;
+    return($exit_code);
+  }
+  return(-1);
+}
