@@ -1,3 +1,7 @@
+* 20151021.01
+  - fixed udp stats tx value going negative on counter reset in netstat plugin
+  - added smart plugin to monitor physical disks S.M.A.R.T. status
+
 * 20151019.01
   - fixed graph colors in loadavg and storage plugins when critical threshold
     is exceeded
