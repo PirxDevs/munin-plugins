@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151019.01
+  20151021.01
 
 =head1 MAGIC MARKERS
 
@@ -94,7 +94,16 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
     # Get device mountpoint from /proc
     my $mountpoint = `cat /proc/self/mounts 2>/dev/null | grep -E '^$device_name\\s' 2>/dev/null | cut -d' ' -f 2 2>/dev/null`;
     chomp($mountpoint);
-    # If mountpoint is empty check if this is swap device
+    # if mountpoint is empty perhaps device was mounted using uuid, try to resolve
+    if($mountpoint eq "") {
+      my $uuid = `blkid -o value -s UUID $device_name`;
+      chomp($uuid);
+      if($uuid ne "") {
+        $mountpoint = `cat /proc/self/mounts 2>/dev/null | grep -E '^/dev/disk/by-uuid/$uuid\\s' 2>/dev/null | cut -d' ' -f 2 2>/dev/null`;
+        chomp($mountpoint);
+      }
+    }
+    # If mountpoint is still empty check if this is swap device
     if($mountpoint eq "") {
       my $is_swap = `grep -E '^/dev/$device\\s' /proc/swaps 2>/dev/null`;
       if($is_swap ne "") {
