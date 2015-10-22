@@ -145,7 +145,7 @@ multigraph $graph_name\_errors
 graph_title Errors on $if
 graph_order rx_errors tx_errors rx_dropped tx_dropped collisions
 graph_args --base 1000 --lower-limit 0
-graph_vlabel bytes
+graph_scale no
 graph_category netif
 
 rx_errors.label RX errors
