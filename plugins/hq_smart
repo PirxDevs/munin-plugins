@@ -165,7 +165,7 @@ EOF
 pending_sectors.label Pending sectors
 pending_sectors.type GAUGE
 pending_sectors.draw LINE2
-pending_sectors.colour 00ffff
+pending_sectors.colour ff00ff
 pending_sectors.critical 1
 EOF
         }
