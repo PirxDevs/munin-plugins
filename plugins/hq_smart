@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151021.01
+  20151029.01
 
 =head1 MAGIC MARKERS
 
@@ -197,7 +197,7 @@ calibration_retries.critical 1
 EOF
         }
       }
-      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'defects'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
         print <<EOF;
 multigraph disk_errors_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -243,7 +243,7 @@ temperature.critical 50
 EOF
         }
       }
-      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'temperature'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
         print <<EOF;
 multigraph disk_temperature_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -304,7 +304,7 @@ start_stop_cycles.draw LINE2
 start_stop_cycles.colour 000080
 EOF
       }
-      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'power_cycles'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
         print <<EOF;
 multigraph disk_power_cycles_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -348,7 +348,7 @@ foreach my $id (keys %disks) {
           print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
         }
       }
-      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'defects'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
         print("multigraph disk_errors_$graph_name\n");
         print("defects.value " . $disks{$id}{'defects'} . "\n");
       }
@@ -358,7 +358,7 @@ foreach my $id (keys %disks) {
           print("temperature.value " . $disks{$id}{'smart'}{'194'}{'raw'} . "\n");
         }
       }
-      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'temperature'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
         print("multigraph disk_temperature_$graph_name\n");
         if(defined($disks{$id}{'temperature'})) {
           print("temperature.value " . $disks{$id}{'temperature'} . "\n");
@@ -372,7 +372,7 @@ foreach my $id (keys %disks) {
         print("multigraph disk_power_cycles_$graph_name\n");
         print("start_stop_cycles.value " . $disks{$id}{'smart'}{'4'}{'raw'} . "\n");
       }
-      if($disks{$id}{'type'} eq "SAS" and defined($disks{$id}{'power_cycles'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
         print("multigraph disk_power_cycles_$graph_name\n");
         print("start_stop_cycles.value " . $disks{$id}{'power_cycles'} . "\n");
       }
