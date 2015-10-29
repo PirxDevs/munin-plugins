@@ -1,6 +1,9 @@
-*
-  - excluded floppy drives from iostat plugin
+* 20151029.01
+  - excluded floppy and IDE CD/DVD drives from iostat plugin
   - try resolving mountpoint using UUID too in iostat plugin
+  - cosmetic/visual changes/fixes in some graphs
+  - added ups plugin to monitor UPS devices via NUT
+  - added support for parallel SCSI disks in smart plugin
 
 * 20151021.01
   - fixed udp stats tx value going negative on counter reset in netstat plugin
