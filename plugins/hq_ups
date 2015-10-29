@@ -242,7 +242,7 @@ EOF
     # Temperature graph
     if(defined($upses{$ups}{'data'}{'battery.temperature'}) or defined($upses{$ups}{'data'}{'ambient.temperature'}) or defined($upses{$ups}{'data'}{'ups.temperature'})) {
       print <<EOF;
-multigraph ups_temperature_$graph_name
+multigraph ups_temperatures_$graph_name
 graph_title $upses{$ups}{'name'} - temperature
 graph_args --base 1024 --lower-limit 0
 graph_scale no
@@ -250,31 +250,31 @@ graph_category ups
 EOF
       if(defined($upses{$ups}{'data'}{'battery.temperature'})) {
         print <<EOF;
-battery_charge.label Battery temperature
-battery_charge.type GAUGE
-battery_charge.draw LINE2
-battery_charge.colour ff0000
+battery_temperature.label Battery temperature
+battery_temperature.type GAUGE
+battery_temperature.draw LINE2
+battery_temperature.colour ff0000
 EOF
       }
       if(defined($upses{$ups}{'data'}{'ups.temperature'})) {
         print <<EOF;
-battery_charge.label UPS temperature
-battery_charge.type GAUGE
-battery_charge.draw LINE2
-battery_charge.colour ff00ff
+ups_temperature.label UPS temperature
+ups_temperature.type GAUGE
+ups_temperature.draw LINE2
+ups_temperature.colour ff00ff
 EOF
       }
       if(defined($upses{$ups}{'data'}{'ambient.temperature'})) {
         print <<EOF;
-battery_charge.label Ambient temperature
-battery_charge.type GAUGE
-battery_charge.draw LINE2
-battery_charge.colour 0000ff
+ambient_temperature.label Ambient temperature
+ambient_temperature.type GAUGE
+ambient_temperature.draw LINE2
+ambient_temperature.colour 0000ff
 EOF
       }
     }
     # Handle 3-phase devices
-    if(defined($upses{$ups}{'data'}{'input.phases'}) and $upses{$ups}{'data'}{'input.phases'} eq 3) {
+    if(defined($upses{$ups}{'data'}{'input.phases'}) and $upses{$ups}{'data'}{'input.phases'} == 3) {
       # Load percentage graph
       if(defined($upses{$ups}{'data'}{'output.L1.power.percent'}) or defined($upses{$ups}{'data'}{'output.L2.power.percent'}) or defined($upses{$ups}{'data'}{'output.L3.power.percent'})) {
         print <<EOF;
@@ -585,7 +585,7 @@ foreach my $ups (sort keys %upses) {
     print("multigraph ups_battery_voltage_" . $graph_name . "\n");
     print("battery_voltage.value " . $upses{$ups}{'data'}{'battery.voltage'} . "\n");
   }
-  if(defined($upses{$ups}{'data'}{'input.phases'}) and $upses{$ups}{'data'}{'input.phases'} eq 3) {
+  if(defined($upses{$ups}{'data'}{'input.phases'}) and $upses{$ups}{'data'}{'input.phases'} == 3) {
     if(defined($upses{$ups}{'data'}{'output.L1.power.percent'}) or defined($upses{$ups}{'data'}{'output.L2.power.percent'}) or defined($upses{$ups}{'data'}{'output.L3.power.percent'})) {
       print("multigraph ups_load_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'output.L1.power.percent'})) {
@@ -599,6 +599,7 @@ foreach my $ups (sort keys %upses) {
       }
     }
     if(defined($upses{$ups}{'data'}{'input.L1-N.voltage'}) or defined($upses{$ups}{'data'}{'input.L1.frequency'})) {
+      print("multigraph ups_input_l1_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'input.L1-N.voltage'})) {
         print("input_l1_voltage.value " . $upses{$ups}{'data'}{'input.L1-N.voltage'} . "\n");
       }
@@ -607,6 +608,7 @@ foreach my $ups (sort keys %upses) {
       }
     }
     if(defined($upses{$ups}{'data'}{'input.L2-N.voltage'}) or defined($upses{$ups}{'data'}{'input.L2.frequency'})) {
+      print("multigraph ups_input_l2_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'input.L2-N.voltage'})) {
         print("input_l2_voltage.value " . $upses{$ups}{'data'}{'input.L2-N.voltage'} . "\n");
       }
@@ -615,6 +617,7 @@ foreach my $ups (sort keys %upses) {
       }
     }
     if(defined($upses{$ups}{'data'}{'input.L3-N.voltage'}) or defined($upses{$ups}{'data'}{'input.L3.frequency'})) {
+      print("multigraph ups_input_l3_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'input.L3-N.voltage'})) {
         print("input_l3_voltage.value " . $upses{$ups}{'data'}{'input.L3-N.voltage'} . "\n");
       }
@@ -623,6 +626,7 @@ foreach my $ups (sort keys %upses) {
       }
     }
     if(defined($upses{$ups}{'data'}{'output.L1-N.voltage'}) or defined($upses{$ups}{'data'}{'output.L1.frequency'})) {
+      print("multigraph ups_output_l1_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'output.L1-N.voltage'})) {
         print("output_l1_voltage.value " . $upses{$ups}{'data'}{'output.L1-N.voltage'} . "\n");
       }
@@ -631,6 +635,7 @@ foreach my $ups (sort keys %upses) {
       }
     }
     if(defined($upses{$ups}{'data'}{'output.L2-N.voltage'}) or defined($upses{$ups}{'data'}{'output.L2.frequency'})) {
+      print("multigraph ups_output_l2_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'output.L2-N.voltage'})) {
         print("output_l2_voltage.value " . $upses{$ups}{'data'}{'output.L2-N.voltage'} . "\n");
       }
@@ -639,6 +644,7 @@ foreach my $ups (sort keys %upses) {
       }
     }
     if(defined($upses{$ups}{'data'}{'output.L3-N.voltage'}) or defined($upses{$ups}{'data'}{'output.L3.frequency'})) {
+      print("multigraph ups_output_l3_" . $graph_name . "\n");
       if(defined($upses{$ups}{'data'}{'output.L3-N.voltage'})) {
         print("output_l3_voltage.value " . $upses{$ups}{'data'}{'output.L3-N.voltage'} . "\n");
       }
