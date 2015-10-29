@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151021.01
+  20151029.01
 
 =head1 MAGIC MARKERS
 
@@ -76,13 +76,22 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
     if($line =~ /^(Linux|Device|\s)/) {
       next(IOSTAT_READ_LOOP);
     }
-    # Exclude ram, loop and cd devices
+    # Exclude ram, loop, cd/dvd and floppy
     if($line =~ /^(fd|loop|ram|scd|sr)[0-9]/) {
       next(IOSTAT_READ_LOOP);
     }
     my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ /^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
     $device =~ s/^\s+|\s+$//g;
     my $device_name = "";
+    # If device is hd* check its media type
+    if($device =~ /^hd[a-z]/) {
+      my $device_type = `cat /sys/block/$device/device/media 2>/dev/null`;
+      chomp($device_type);
+      # Exclude cd/dvd and floppy
+      if($device_type eq "cdrom" or $device_type eq "floppy") {
+        next(IOSTAT_READ_LOOP);
+      }
+    }
     # If device is dm-* get friendly name from /sys
     if($device =~ /^dm-[0-9]/) {
       $device_name = "/dev/mapper/" . `cat /sys/block/$device/dm/name 2>/dev/null`;
