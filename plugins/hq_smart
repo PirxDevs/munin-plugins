@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151029.01
+  20151102.01
 
 =head1 MAGIC MARKERS
 
@@ -93,10 +93,9 @@ BLOCK_DEVS_LOOP: foreach my $block_dev (@block_devs) {
 }
 
 foreach my $device (keys %raid_devices) {
-  if($raid_devices{$device} eq "megaraid") {
-    my $sub_device = 0;
+  if($raid_devices{$device} eq "megaraid" or $raid_devices{$device} eq "perc_h310") {
     my $status = 0;
-    do {
+    for(my $sub_device = 0; $sub_device < 32; $sub_device++) {
       $status = read_smart($device, "megaraid", $sub_device);
       if($status == 127 or $status == -1) {
         print("Error running smartctl. Exiting.\n");
@@ -105,15 +104,13 @@ foreach my $device (keys %raid_devices) {
       if(defined($smart_data{'serial'})) {
         $disks{$smart_data{'serial'}} = { %smart_data };
       }
-      $sub_device++;
-    } while ($status == 0);
+    }
   }
   if($raid_devices{$device} eq "3ware") {
     my @twa_devs = glob("/dev/twa[0-9]*");
     foreach my $twa_dev (sort @twa_devs) {
-      my $sub_device = 0;
       my $status = 0;
-      do {
+      for(my $sub_device = 0; $sub_device < 32; $sub_device++) {
         $status = read_smart($twa_dev, "3ware", $sub_device);
         if($status == 127 or $status == -1) {
           print("Error running smartctl. Exiting.\n");
@@ -122,8 +119,7 @@ foreach my $device (keys %raid_devices) {
         if(defined($smart_data{'serial'})) {
           $disks{$smart_data{'serial'}} = { %smart_data };
         }
-        $sub_device++;
-      } while ($status == 0);    
+      }
     }
   }
 }
@@ -453,6 +449,9 @@ sub read_smart() {
     }
     close($exec_fd);
     my $exit_code = $? >> 8;
+    if(defined($smart_data{'vendor'}) and defined($smart_data{'model'}) and $smart_data{'vendor'} =~ /^dell$/i and $smart_data{'model'} =~ /^perc h310$/i) {
+      $smart_data{'raid'} = "perc_h310";
+    }
     return($exit_code);
   }
   return(-1);
