@@ -40,7 +40,7 @@ or:
 
 =head1 VERSION
 
-  20151022.01
+  20151102.01
 
 =head1 MAGIC MARKERS
 
@@ -89,6 +89,10 @@ my @entries = (
   "tx_errors"
 );
 NETIF_LOOP: foreach my $netif (sort @netifs) {
+  # Skip files
+  if(-f "/sys/class/net/" . $netif) {
+    next(NETIF_LOOP);
+  }
   # Skip loopback
   if($netif eq "lo") {
     next(NETIF_LOOP);
