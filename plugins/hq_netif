@@ -18,7 +18,7 @@
 
 =head1 NAME
 
-hq_netif_ - Munin plugin to monitor network interfaces.
+hq_netif - Munin plugin to monitor network interfaces.
 
 =head1 APPLICABLE SYSTEMS
 
