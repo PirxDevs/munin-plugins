@@ -1,0 +1,244 @@
+#!/usr/bin/perl
+# -*- perl -*-
+
+# Copyright (C) 2015 Pirx Developers - https://pirx.dev/
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=head1 NAME
+
+hq_firebird - Munin plugin to monitor Firebird databases
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems with Firebird server and gstat command.
+
+=head1 CONFIGURATION
+
+You may need to run this plugin as root or as special user
+to be able to query databases:
+
+[hq_firebird]
+  user firebird
+
+You must also specify directory where database files are stored
+and extension they're using. For example if you keep databases
+in /var/lib/firebird and they use .ib extensions please add this
+to your munin node configuration:
+
+[hq_firebird]
+  env.dbdir /var/lib/firebird
+  env.dbext .ib
+
+If gstat is not in PATH or you want to override its location it
+can be done via config too:
+
+[hq_firebird]
+  env.gstat /opt/firebird/bin/gstat
+
+It is also possible to exclude some databases from monitoring:
+
+[hq_firebird]
+  env.excludes systemst;employees;someotherdb;
+
+=head1 VERSION
+
+  20151105.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv3
+
+=cut
+
+use strict;
+use warnings;
+use Munin::Plugin;
+
+sub read_gstat;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("yes\n");
+  exit(0);
+}
+
+need_multigraph();
+
+if(!defined($ENV{'dbdir'}) or !defined($ENV{'dbext'}) or $ENV{'dbdir'} eq "" or $ENV{'dbext'} eq "") {
+  print("Plugin not configured. Please set dbdir and dbext.\n");
+  exit(1);
+}
+
+my %dbs;
+
+# Get list of databases
+my @db_files = glob($ENV{'dbdir'} . "/*" . $ENV{'dbext'});
+@db_files = map(m!\Q$ENV{'dbdir'}\E[/]*([^/]+)\Q$ENV{'dbext'}\E$!, @db_files);
+
+# Get list of excludes
+my @excludes;
+if(defined($ENV{'excludes'})) {
+  @excludes = split(/;/,$ENV{'excludes'});
+}
+
+# Get stats for each database
+DB_LOOP: foreach my $db (sort @db_files) {
+  # Parse excludes
+  foreach my $exclude (@excludes) {
+    if($db eq $exclude) {
+      next(DB_LOOP);
+    }
+  }
+  read_gstat($db, $ENV{'dbdir'}, $ENV{'dbext'});
+}
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  for my $db (keys %dbs) {
+    my $graph_name = $db;
+    $graph_name =~ s![/\-\.]!_!g;
+    print <<EOF;
+multigraph fb_transactions_$graph_name
+graph_title Transactions on $db
+graph_order next active oldest
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_category firebird
+
+next.label Transactions
+next.type DERIVE
+next.min 0
+next.draw AREA
+next.colour a00000
+active.label Active transactions
+active.type DERIVE
+active.min 0
+active.draw LINE1
+active.colour ff9500
+interesting.label Interesting transactions
+interesting.type DERIVE
+interesting.min 0
+interesting.draw LINE1
+interesting.colour ffff00
+
+multigraph fb_connections_$graph_name
+graph_title Connections to $db
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_category firebird
+
+connections.label Connections
+connections.type DERIVE
+connections.min 0
+connections.draw AREA
+connections.colour a00000
+
+multigraph fb_sweep_$graph_name
+graph_title OAT vs OIT for $db
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_category firebird
+
+oat_vs_oit.label OAT vs OIT
+oat_vs_oit.type GAUGE
+oat_vs_oit.min 0
+oat_vs_oit.draw LINE2
+oat_vs_oit.colour 0000a0
+
+multigraph fb_garbage_$graph_name
+graph_title OAT vs NEXT for $db
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_category firebird
+
+next_vs_oat.label OAT vs NEXT
+next_vs_oat.type GAUGE
+next_vs_oat.min 0
+next_vs_oat.draw LINE2
+next_vs_oat.colour 0000a0
+EOF
+  }
+  exit(0);
+}
+
+for my $db (keys %dbs) {
+  my $graph_name = $db;
+  $graph_name =~ s![/\-\.]!_!g;
+  print <<EOF;
+multigraph fb_transactions_$graph_name
+next.value $dbs{$db}{'next_transaction'}
+active.value $dbs{$db}{'oldest_active'}
+interesting.value $dbs{$db}{'oldest_transaction'}
+
+multigraph fb_connections_$graph_name
+connections.value $dbs{$db}{'next_attachment'}
+
+multigraph fb_sweep_$graph_name
+oat_vs_oit.value $dbs{$db}{'oat_vs_oit'}
+
+multigraph fb_garbage_$graph_name
+next_vs_oat.value $dbs{$db}{'next_vs_oat'}
+
+EOF
+}
+
+exit(0);
+
+sub read_gstat() {
+  my ($db, $dbdir, $dbext) = @_;
+  my $exec_fd;
+  my $gstat;
+  if(defined($ENV{'gstat'}) and $ENV{'gstat'} ne "") {
+    $gstat = $ENV{'gstat'};
+  }
+  else {
+    $gstat = "gstat";
+  }
+  if(open($exec_fd, $gstat . " -h " . $dbdir . "/" . $db . $dbext . " 2>/dev/null |")) {
+    GSTAT_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+      if($line =~ /^\s+Oldest transaction\s+(.*)$/) {
+        $dbs{$db}{'oldest_transaction'} = $1;
+      }
+      if($line =~ /^\s+Oldest active\s+(.*)$/) {
+        $dbs{$db}{'oldest_active'} = $1;
+      }
+      if($line =~ /^\s+Next transaction\s+(.*)$/) {
+        $dbs{$db}{'next_transaction'} = $1;
+      }
+      if($line =~ /^\s+Next attachment ID\s+(.*)$/) {
+        $dbs{$db}{'next_attachment'} = $1;
+      }
+    }
+    $dbs{$db}{'oat_vs_oit'} = $dbs{$db}{'oldest_active'} - $dbs{$db}{'oldest_transaction'};
+    $dbs{$db}{'next_vs_oat'} = $dbs{$db}{'next_transaction'} - $dbs{$db}{'oldest_active'};
+    close($exec_fd);
+    my $exit_code = $? >> 8;
+    return($exit_code);
+  }
+  return(-1);
+}
