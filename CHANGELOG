@@ -7,6 +7,9 @@
   - exclude cd/floppy/removable devices from scanning in smart plugin
   - added support for power on time for SAS/Parallel SCSI devices in smart
     plugin
+  - fix critical levels for defects in smart plugins, should be 0
+  - don't rely on /dev/twa* entries for 3ware controllers, smartctl will
+    create/fix them if needed
   - support older kernel with less cpu fields in /proc/stat in cpu plugin
   - fixed calculation of user/nice values in cpu plugin (substract guest
     and guest_nice values so they're not included twice)
