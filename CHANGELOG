@@ -1,3 +1,17 @@
+* 20151110.01
+  - skip regular files in /sys/class/net/ in netif plugin, fixes creating of
+    graphs for bonding_masters etc.
+  - added support for Dell Perc H310 in smart plugin
+  - scan up to 32 physical disks for RAID controllers in smart plugin, fixes
+    not all disks being reported on some configurations
+  - exclude cd/floppy/removable devices from scanning in smart plugin
+  - added support for power on time for SAS/Parallel SCSI devices in smart
+    plugin
+  - support older kernel with less cpu fields in /proc/stat in cpu plugin
+  - fixed calculation of user/nice values in cpu plugin (substract guest
+    and guest_nice values so they're not included twice)
+  - added firebird plugin for monitoring Firebird databases
+
 * 20151029.01
   - excluded floppy and IDE CD/DVD drives from iostat plugin
   - try resolving mountpoint using UUID too in iostat plugin
