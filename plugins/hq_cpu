@@ -37,7 +37,7 @@ Default thresholds are 80% for warning and 90% for critical.
 
 =head1 VERSION
 
-  20151019.01
+  20151110.01
 
 =head1 MAGIC MARKERS
 
@@ -73,6 +73,7 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
 need_multigraph();
 
 # Get data from /proc
+my $stats_fields;
 my %cpus;
 $cpus{'read_count'} = 0;
 while($cpus{'read_count'} le 1) {
@@ -81,7 +82,22 @@ while($cpus{'read_count'} le 1) {
 }
 delete($cpus{'read_count'});
 
-my @data_names = ("system", "user", "nice", "iowait", "irq", "softirq", "steal", "guest", "guest_nice", "idle");
+my @data_names;
+if($stats_fields == 5) {
+  @data_names = ("system", "user", "nice", "iowait", "idle");
+}
+elsif($stats_fields == 7) {
+  @data_names = ("system", "user", "nice", "iowait", "irq", "softirq", "idle");
+}
+elsif($stats_fields == 8) {
+  @data_names = ("system", "user", "nice", "iowait", "irq", "softirq", "steal", "idle");
+}
+elsif($stats_fields == 9) {
+  @data_names = ("system", "user", "nice", "iowait", "irq", "softirq", "steal", "guest", "idle");
+}
+elsif($stats_fields == 10) {
+  @data_names = ("system", "user", "nice", "iowait", "irq", "softirq", "steal", "guest", "guest_nice", "idle");
+}
 my %data_colors = (
   'system' => "800000",
   'user' => "ff0000",
@@ -192,7 +208,32 @@ sub read_proc_stat() {
   }
   STAT_READ_LOOP: while(defined(my $line=<$stat_fd>)) {
     if($line =~ /^cpu\d+\s/) {
-      my ($core_num, $user, $nice, $system, $idle, $iowait, $irq, $softirq, $steal, $guest, $guest_nice) = $line =~ /^cpu(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/;
+      chomp($line);
+      my @cpustat = split(" ", $line);
+      $stats_fields = $#cpustat;
+      my ($core_num) = $cpustat[0] =~ /^cpu([0-9]+)/;
+      my $user;
+      my $nice;
+      my $system;
+      my $idle;
+      my $iowait;
+      my $irq;
+      my $softirq;
+      my $steal;
+      my $guest;
+      my $guest_nice;
+      $user = $cpustat[1] || 0;
+      $nice = $cpustat[2] || 0;
+      $system = $cpustat[3] || 0;
+      $idle = $cpustat[4] || 0;
+      $iowait = $cpustat[5] || 0;
+      $irq = $cpustat[6] || 0;
+      $softirq = $cpustat[7] || 0;
+      $steal = $cpustat[8] || 0;
+      $guest = $cpustat[9] || 0;
+      $guest_nice = $cpustat[10] || 0;
+      $user -= $guest;
+      $nice -= $guest_nice;
       if(defined($cpus{$core_num})) {
           $cpus{$core_num}{'data'}{'user'} = $user - $cpus{$core_num}{'data'}{'user'};
           $cpus{$core_num}{'data'}{'nice'} = $nice - $cpus{$core_num}{'data'}{'nice'};
@@ -207,16 +248,16 @@ sub read_proc_stat() {
         }
       else {
         $cpus{$core_num}{'data'} = {
-          'user' => $user || 0,
-          'nice' => $nice || 0,
-          'system' => $system || 0,
-          'idle' => $idle || 0,
-          'iowait' => $iowait || 0,
-          'irq' => $irq || 0,
-          'softirq' => $softirq || 0,
-          'steal' => $steal || 0,
-          'guest' => $guest || 0,
-          'guest_nice' => $guest_nice || 0
+          'user' => $user,
+          'nice' => $nice,
+          'system' => $system,
+          'idle' => $idle,
+          'iowait' => $iowait,
+          'irq' => $irq,
+          'softirq' => $softirq,
+          'steal' => $steal,
+          'guest' => $guest,
+          'guest_nice' => $guest_nice
         };
       }
     $cpus{$core_num}{'data'}{'total_usage'} = 
