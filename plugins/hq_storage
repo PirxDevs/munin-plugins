@@ -40,7 +40,7 @@ Default thresholds are 90% for warning and 95% for critical.
 
 =head1 VERSION
 
-  20151019.01
+  20151110.01
 
 =head1 MAGIC MARKERS
 
@@ -215,9 +215,6 @@ used.label Used
 used.type GAUGE
 used.draw AREASTACK
 used.colour $used_color
-used.line $warning:ffff00:Warning threshold
-used.warning $warning
-used.critical $critical
 free.label Free
 free.type GAUGE
 free.draw AREASTACK
