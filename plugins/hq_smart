@@ -122,10 +122,10 @@ foreach my $device (keys %raid_devices) {
   }
   if($raid_devices{$device} eq "3ware") {
     my @twa_devs = glob("/dev/twa[0-9]*");
-    foreach my $twa_dev (sort @twa_devs) {
+    for(my $twa_device = 0; $twa_device < 16; $twa_device++) {
       my $status = 0;
       for(my $sub_device = 0; $sub_device < 32; $sub_device++) {
-        $status = read_smart($twa_dev, "3ware", $sub_device);
+        $status = read_smart("/dev/twa" . $twa_device, "3ware", $sub_device);
         if($status == 127 or $status == -1) {
           print("Error running smartctl. Exiting.\n");
           exit(1);
@@ -158,7 +158,7 @@ reallocation_events.label Reallocation events
 reallocation_events.type GAUGE
 reallocation_events.draw LINE2
 reallocation_events.colour ff9500
-reallocation_events.critical 1
+reallocation_events.critical 0
 EOF
         }
         if(defined($disks{$id}{'smart'}{'5'}{'raw'})) {
@@ -167,7 +167,7 @@ reallocated_sectors.label Reallocated sectors
 reallocated_sectors.type GAUGE
 reallocated_sectors.draw LINE2
 reallocated_sectors.colour ff0000
-reallocated_sectors.critical 1
+reallocated_sectors.critical 0
 EOF
         }
         if(defined($disks{$id}{'smart'}{'197'}{'raw'})) {
@@ -176,7 +176,7 @@ pending_sectors.label Pending sectors
 pending_sectors.type GAUGE
 pending_sectors.draw LINE2
 pending_sectors.colour ff00ff
-pending_sectors.critical 1
+pending_sectors.critical 0
 EOF
         }
         if(defined($disks{$id}{'smart'}{'198'}{'raw'})) {
@@ -185,7 +185,7 @@ uncorrectable_sectors.label Uncorrectable sectors
 uncorrectable_sectors.type GAUGE
 uncorrectable_sectors.draw LINE2
 uncorrectable_sectors.colour 900000
-uncorrectable_sectors.critical 1
+uncorrectable_sectors.critical 0
 EOF
         }
         if(defined($disks{$id}{'smart'}{'10'}{'raw'})) {
@@ -194,7 +194,7 @@ spin_retries.label Spin retries
 spin_retries.type GAUGE
 spin_retries.draw LINE2
 spin_retries.colour 0000ff
-spin_retries.critical 1
+spin_retries.critical 0
 EOF
         }
         if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
@@ -203,7 +203,7 @@ calibration_retries.label Calibration retries
 calibration_retries.type GAUGE
 calibration_retries.draw LINE2
 calibration_retries.colour 00ffff
-calibration_retries.critical 1
+calibration_retries.critical 0
 EOF
         }
       }
@@ -219,7 +219,7 @@ defects.label Elements in defect list
 defects.type GAUGE
 defects.draw LINE2
 defects.colour ff0000
-defects.critical 1
+defects.critical 0
 EOF
       }
       if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'194'}{'raw'})) {
