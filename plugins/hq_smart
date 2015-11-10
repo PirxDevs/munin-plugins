@@ -76,8 +76,22 @@ my @block_devs = glob("/sys/block/*");
 @block_devs = map(m!/sys/block/([^/]+)!, @block_devs);
 
 BLOCK_DEVS_LOOP: foreach my $block_dev (@block_devs) {
-  if($block_dev =~ /^(ram[0-9]|loop[0-9]|md[0-9]|dm\-[0-9])/) {
+  if($block_dev =~ /^(fd|scr|sr|ram|loop|md|dm\-)[0-9]/) {
     next(BLOCK_DEVS_LOOP);
+  }
+  if($block_dev =~ /^hd[a-z]/) {
+    my $device_type = `cat /sys/block/$block_dev/device/media 2>/dev/null`;
+    chomp($device_type);
+    if($device_type eq "cdrom" or $device_type eq "floppy") {
+      next(BLOCK_DEVS_LOOP);
+    }
+  }
+  if($block_dev =~ /^sd[a-z]/) {
+    my $device_removable = `cat /sys/block/$block_dev/removable 2>/dev/null`;
+    chomp($device_removable);
+    if($device_removable eq "1") {
+      next(BLOCK_DEVS_LOOP);
+    }
   }
   my $status = read_smart("/dev/" . $block_dev, "", ""); 
   if($status == 127 or $status == -1) {
@@ -286,6 +300,20 @@ power_on_time.draw AREA
 power_on_time.colour 00d000
 EOF
       }
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_on_time'})) {
+        print <<EOF;
+multigraph disk_poh_$graph_name
+graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_vlabel time
+graph_category disk_smart
+power_on_time.label Power On Hours
+power_on_time.type GAUGE
+power_on_time.draw AREA
+power_on_time.colour 00d000
+EOF
+      }
       if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'4'}{'raw'})) {
         print <<EOF;
 multigraph disk_power_cycles_$graph_name
@@ -324,56 +352,60 @@ foreach my $id (keys %disks) {
   $graph_name =~ s/[^a-zA-Z0-9]/_/g;
   if(defined($disks{$id}{'type'})) {
     if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (defined($disks{$id}{'smart'}{'196'}{'raw'}) or defined($disks{$id}{'smart'}{'5'}{'raw'}) or defined($disks{$id}{'smart'}{'197'}{'raw'}) or defined($disks{$id}{'smart'}{'198'}{'raw'}) or defined($disks{$id}{'smart'}{'10'}{'raw'}) or defined($disks{$id}{'smart'}{'11'}{'raw'}))) {
-        print("multigraph disk_errors_$graph_name\n");
-        if(defined($disks{$id}{'smart'}{'196'}{'raw'})) {
-          print("reallocation_events.value " . $disks{$id}{'smart'}{'196'}{'raw'} . "\n");
-        }
-        if(defined($disks{$id}{'smart'}{'5'}{'raw'})) {
-          print("reallocated_sectors.value " . $disks{$id}{'smart'}{'5'}{'raw'} . "\n");
-        }
-        if(defined($disks{$id}{'smart'}{'197'}{'raw'})) {
-          print("pending_sectors.value " . $disks{$id}{'smart'}{'197'}{'raw'} . "\n");
-        }
-        if(defined($disks{$id}{'smart'}{'198'}{'raw'})) {
-          print("uncorrectable_sectors.value " . $disks{$id}{'smart'}{'198'}{'raw'} . "\n");
-        }
-        if(defined($disks{$id}{'smart'}{'10'}{'raw'})) {
-          print("spin_retries.value " . $disks{$id}{'smart'}{'10'}{'raw'} . "\n");
-        }
-        if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
-          print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
-        }
+      print("multigraph disk_errors_$graph_name\n");
+      if(defined($disks{$id}{'smart'}{'196'}{'raw'})) {
+        print("reallocation_events.value " . $disks{$id}{'smart'}{'196'}{'raw'} . "\n");
       }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
-        print("multigraph disk_errors_$graph_name\n");
-        print("defects.value " . $disks{$id}{'defects'} . "\n");
+      if(defined($disks{$id}{'smart'}{'5'}{'raw'})) {
+        print("reallocated_sectors.value " . $disks{$id}{'smart'}{'5'}{'raw'} . "\n");
       }
-      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'194'}{'raw'})) {
-        print("multigraph disk_temperature_$graph_name\n");
-        if(defined($disks{$id}{'smart'}{'194'}{'raw'})) {
-          print("temperature.value " . $disks{$id}{'smart'}{'194'}{'raw'} . "\n");
-        }
+      if(defined($disks{$id}{'smart'}{'197'}{'raw'})) {
+        print("pending_sectors.value " . $disks{$id}{'smart'}{'197'}{'raw'} . "\n");
       }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
-        print("multigraph disk_temperature_$graph_name\n");
-        if(defined($disks{$id}{'temperature'})) {
-          print("temperature.value " . $disks{$id}{'temperature'} . "\n");
-        }
+      if(defined($disks{$id}{'smart'}{'198'}{'raw'})) {
+        print("uncorrectable_sectors.value " . $disks{$id}{'smart'}{'198'}{'raw'} . "\n");
       }
-      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'9'}{'raw'})) {
-        print("multigraph disk_poh_$graph_name\n");
-        print("power_on_time.value " . $disks{$id}{'smart'}{'9'}{'raw'} . "\n");
+      if(defined($disks{$id}{'smart'}{'10'}{'raw'})) {
+        print("spin_retries.value " . $disks{$id}{'smart'}{'10'}{'raw'} . "\n");
       }
-      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'4'}{'raw'})) {
-        print("multigraph disk_power_cycles_$graph_name\n");
-        print("start_stop_cycles.value " . $disks{$id}{'smart'}{'4'}{'raw'} . "\n");
-      }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
-        print("multigraph disk_power_cycles_$graph_name\n");
-        print("start_stop_cycles.value " . $disks{$id}{'power_cycles'} . "\n");
+      if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
+        print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
       }
     }
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
+      print("multigraph disk_errors_$graph_name\n");
+      print("defects.value " . $disks{$id}{'defects'} . "\n");
+    }
+    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'194'}{'raw'})) {
+      print("multigraph disk_temperature_$graph_name\n");
+      if(defined($disks{$id}{'smart'}{'194'}{'raw'})) {
+        print("temperature.value " . $disks{$id}{'smart'}{'194'}{'raw'} . "\n");
+      }
+    }
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
+      print("multigraph disk_temperature_$graph_name\n");
+      if(defined($disks{$id}{'temperature'})) {
+        print("temperature.value " . $disks{$id}{'temperature'} . "\n");
+      }
+    }
+    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'9'}{'raw'})) {
+      print("multigraph disk_poh_$graph_name\n");
+      print("power_on_time.value " . $disks{$id}{'smart'}{'9'}{'raw'} . "\n");
+    }
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
+      print("multigraph disk_poh_$graph_name\n");
+      print("power_on_time.value " . $disks{$id}{'power_on_time'} . "\n");
+    }
+    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and defined($disks{$id}{'smart'}{'4'}{'raw'})) {
+      print("multigraph disk_power_cycles_$graph_name\n");
+      print("start_stop_cycles.value " . $disks{$id}{'smart'}{'4'}{'raw'} . "\n");
+    }
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
+      print("multigraph disk_power_cycles_$graph_name\n");
+      print("start_stop_cycles.value " . $disks{$id}{'power_cycles'} . "\n");
+    }
   }
+}
 
 exit(0);
 
@@ -440,6 +472,9 @@ sub read_smart() {
       }
       if($line =~ /^Elements in grown defect list:\s+(.*)$/) {
         $smart_data{'defects'} = $1;
+      }
+      if($line =~ /^\s+number of hours powered up =\s+(.*)$/) {
+        $smart_data{'power_on_time'} = $1;
       }
       if($line =~ /^\s*([0-9]+)\s+([^\s]+)\s+([0-9a-fx]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([0-9]+)/) {
         $smart_data{'smart'}{$1}{'name'} = $2;
