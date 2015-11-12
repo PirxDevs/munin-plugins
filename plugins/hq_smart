@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151110.01
+  20151112.01
 
 =head1 MAGIC MARKERS
 
@@ -194,7 +194,7 @@ spin_retries.label Spin retries
 spin_retries.type GAUGE
 spin_retries.draw LINE2
 spin_retries.colour 0000ff
-spin_retries.critical 0
+spin_retries.warning 0
 EOF
         }
         if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
@@ -203,7 +203,7 @@ calibration_retries.label Calibration retries
 calibration_retries.type GAUGE
 calibration_retries.draw LINE2
 calibration_retries.colour 00ffff
-calibration_retries.critical 0
+calibration_retries.warning 0
 EOF
         }
       }
