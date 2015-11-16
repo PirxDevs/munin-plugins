@@ -1,4 +1,4 @@
-* 20151110.01
+* 20151116.01
   - skip regular files in /sys/class/net/ in netif plugin, fixes creating of
     graphs for bonding_masters etc.
   - added support for Dell Perc H310 in smart plugin
