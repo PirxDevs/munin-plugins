@@ -147,7 +147,7 @@ rtt.type GAUGE
 rtt.min 0
 rtt.draw LINE1
 rtt.colour 228b22
-rtt.line $rtt_warning:9cff9c:RTT warning threshold
+rtt.line $rtt_warning:40ff40:RTT warning threshold
 rtt.warning $rtt_warning
 rtt.critical $rtt_critical
 EOF
