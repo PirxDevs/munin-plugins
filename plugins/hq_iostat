@@ -73,18 +73,18 @@ my $iostat_fd;
 if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
   IOSTAT_READ_LOOP: while(defined(my $line=<$iostat_fd>)) {
     # Exclude headers
-    if($line =~ /^(Linux|Device|\s)/) {
+    if($line =~ m/^(Linux|Device|\s)/) {
       next(IOSTAT_READ_LOOP);
     }
     # Exclude ram, loop, cd/dvd and floppy
-    if($line =~ /^(fd|loop|ram|scd|sr)[0-9]/) {
+    if($line =~ m/^(fd|loop|ram|scd|sr)[0-9]/) {
       next(IOSTAT_READ_LOOP);
     }
-    my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ /^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
+    my ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ m/^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)$/;
     $device =~ s/^\s+|\s+$//g;
     my $device_name = "";
     # If device is hd* check its media type
-    if($device =~ /^hd[a-z]/) {
+    if($device =~ m/^hd[a-z]/) {
       my $device_type = `cat /sys/block/$device/device/media 2>/dev/null`;
       chomp($device_type);
       # Exclude cd/dvd and floppy
@@ -93,7 +93,7 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
       }
     }
     # If device is dm-* get friendly name from /sys
-    if($device =~ /^dm-[0-9]/) {
+    if($device =~ m/^dm-[0-9]/) {
       $device_name = "/dev/mapper/" . `cat /sys/block/$device/dm/name 2>/dev/null`;
       chomp($device_name);
     }

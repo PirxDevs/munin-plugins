@@ -84,12 +84,12 @@ my $exec_fd;
 if(open($exec_fd, "df -P -l 2>/dev/null |")) {
   DF_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
     # Exclude header
-    if($line =~ /^Filesystem/) {
+    if($line =~ m/^Filesystem/) {
       next(DF_READ_LOOP);
     }
-    my ($device, $size, $used, $free, $percent, $mountpoint) = $line =~ /^(.*)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)%[ \t]+(.*)$/;
+    my ($device, $size, $used, $free, $percent, $mountpoint) = $line =~ m/^(.*)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+)%[ \t]+(.*)$/;
     EXCLUDES_LOOP: foreach my $exclude (@excludes) {
-      if($mountpoint =~ /^\Q$exclude\E/) {
+      if($mountpoint =~ m/^\Q$exclude\E/) {
         next(DF_READ_LOOP);
       }
     }
@@ -116,7 +116,7 @@ else {
 if(open($exec_fd, "vgs --noheadings --nosuffix --separator=: --units=b --options=vg_name,vg_size,vg_free 2>/dev/null |")) {
   VGS_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
     $line =~ s/\s//g;
-    my ($vgname, $vgsize, $vgfree) = $line =~ /^(.*):(\d+):(\d+)$/;
+    my ($vgname, $vgsize, $vgfree) = $line =~ m/^(.*):(\d+):(\d+)$/;
     $vgs{$vgname} = {
       'size' => $vgsize,
       'used' => $vgsize - $vgfree,

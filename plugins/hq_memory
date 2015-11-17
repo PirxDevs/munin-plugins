@@ -79,7 +79,7 @@ my %meminfo;
 my @entries = ("MemTotal", "MemFree", "Buffers", "Cached", "Slab", "PageTables", "SwapTotal", "SwapFree");
 foreach my $entry (@entries) {
   my $data = `grep -E "^$entry:" /proc/meminfo 2>/dev/null`;
-  ($data) = $data =~ /^\Q$entry\E:[ ]*(\d+)/;
+  ($data) = $data =~ m/^\Q$entry\E:[ ]*(\d+)/;
   $meminfo{$entry} = $data * 1024;
   undef($data);
 }
