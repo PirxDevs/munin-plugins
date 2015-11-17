@@ -138,7 +138,7 @@ loss.type GAUGE
 loss.min 0
 loss.draw LINE1
 loss.colour ff0000
-loss.line $warning:ffff00:Packet loss warning threshold
+loss.line $loss_warning:ffff00:Packet loss warning threshold
 loss.warning $loss_warning
 loss.critical $loss_critical
 
@@ -147,9 +147,9 @@ rtt.type GAUGE
 rtt.min 0
 rtt.draw LINE1
 rtt.colour 228b22
-rtt.line $warning:9cff9c:RTT warning threshold
-rtt.warning $loss_warning
-rtt.critical $loss_critical
+rtt.line $rtt_warning:9cff9c:RTT warning threshold
+rtt.warning $rtt_warning
+rtt.critical $rtt_critical
 EOF
   exit(0);
 }
