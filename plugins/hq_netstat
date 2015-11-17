@@ -79,31 +79,31 @@ my %netstats;
 my $exec_fd;
 if(open($exec_fd, "netstat -s 2>/dev/null |")) {
   READ_LOOP: while(defined(my $line=<$exec_fd>)) {
-    if($line =~ /(\d+) ICMP messages (received|sent)/) {
+    if($line =~ m/(\d+) ICMP messages (received|sent)/) {
       $netstats{'icmp'}{$2} = $1;
     }
-    if($line =~ /(\d+) input ICMP message failed/) {
+    if($line =~ m/(\d+) input ICMP message failed/) {
       $netstats{'icmp'}{'received_failed'} = $1;
     }
-    if($line =~ /(\d+) ICMP messages failed/) {
+    if($line =~ m/(\d+) ICMP messages failed/) {
       $netstats{'icmp'}{'sent_failed'} = $1;
     }
-    if($line =~ /(\d+) (active|passive) connection[s]* openings/) {
+    if($line =~ m/(\d+) (active|passive) connection[s]* openings/) {
       $netstats{'tcp'}{$2} = $1;
     }
-    if($line =~ /(\d+) failed connection attempts/) {
+    if($line =~ m/(\d+) failed connection attempts/) {
       $netstats{'tcp'}{'failed'} = $1;
     }
-    if($line =~ /(\d+) connection resets received/) {
+    if($line =~ m/(\d+) connection resets received/) {
       $netstats{'tcp'}{'resets_received'} = $1;
     }
-    if($line =~ /(\d+) resets sent/) {
+    if($line =~ m/(\d+) resets sent/) {
       $netstats{'tcp'}{'resets_sent'} = $1;
     }
-    if($line =~ /(\d+) connections established/) {
+    if($line =~ m/(\d+) connections established/) {
       $netstats{'tcp'}{'established'} = $1;
     }
-    if($line =~ /(\d+) packets (received|sent)/) {
+    if($line =~ m/(\d+) packets (received|sent)/) {
       $netstats{'udp'}{$2} = $1;
     }
   }

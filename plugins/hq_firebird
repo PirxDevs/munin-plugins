@@ -221,16 +221,16 @@ sub read_gstat() {
   }
   if(open($exec_fd, $gstat . " -h " . $dbdir . "/" . $db . $dbext . " 2>/dev/null |")) {
     GSTAT_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
-      if($line =~ /^\s+Oldest transaction\s+(.*)$/) {
+      if($line =~ m/^\s+Oldest transaction\s+(.*)$/) {
         $dbs{$db}{'oldest_transaction'} = $1;
       }
-      if($line =~ /^\s+Oldest active\s+(.*)$/) {
+      if($line =~ m/^\s+Oldest active\s+(.*)$/) {
         $dbs{$db}{'oldest_active'} = $1;
       }
-      if($line =~ /^\s+Next transaction\s+(.*)$/) {
+      if($line =~ m/^\s+Next transaction\s+(.*)$/) {
         $dbs{$db}{'next_transaction'} = $1;
       }
-      if($line =~ /^\s+Next attachment ID\s+(.*)$/) {
+      if($line =~ m/^\s+Next attachment ID\s+(.*)$/) {
         $dbs{$db}{'next_attachment'} = $1;
       }
     }

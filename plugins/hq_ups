@@ -104,12 +104,12 @@ if(defined($ENV{'devices'})) {
     my $login;
     my $host;
     my $port;
-    ($login, $host) = $device =~ /^(.*)\@(.*)$/;
-    if($login =~ /:/) {
-      ($name, $login) = $login =~ /^(.*):(.*)$/;
+    ($login, $host) = $device =~ m/^(.*)\@(.*)$/;
+    if($login =~ m/:/) {
+      ($name, $login) = $login =~ m/^(.*):(.*)$/;
     }
-    if($host =~ /:/) {
-      ($host, $port) = $host =~ /^(.*):(.*)$/;
+    if($host =~ m/:/) {
+      ($host, $port) = $host =~ m/^(.*):(.*)$/;
     }
     else {
       $port = 3493;
@@ -133,7 +133,7 @@ foreach my $ups (sort keys %upses) {
   my $exec_fd;
   if(open($exec_fd, "upsc " . $upses{$ups}{'login'} . "@" . $upses{$ups}{'host'} . ":" . $upses{$ups}{'port'} . " 2>/dev/null |")) {
     UPSC_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
-      if($line =~ /^(.*):\s+(.*)$/) {
+      if($line =~ m/^(.*):\s+(.*)$/) {
         $upses{$ups}{'data'}{$1} = $2;
       }
     }

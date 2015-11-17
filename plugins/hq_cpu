@@ -207,11 +207,11 @@ sub read_proc_stat() {
     exit(1);
   }
   STAT_READ_LOOP: while(defined(my $line=<$stat_fd>)) {
-    if($line =~ /^cpu\d+\s/) {
+    if($line =~ m/^cpu\d+\s/) {
       chomp($line);
       my @cpustat = split(" ", $line);
       $stats_fields = $#cpustat;
-      my ($core_num) = $cpustat[0] =~ /^cpu([0-9]+)/;
+      my ($core_num) = $cpustat[0] =~ m/^cpu([0-9]+)/;
       my $user;
       my $nice;
       my $system;

@@ -76,17 +76,17 @@ my @block_devs = glob("/sys/block/*");
 @block_devs = map(m!/sys/block/([^/]+)!, @block_devs);
 
 BLOCK_DEVS_LOOP: foreach my $block_dev (@block_devs) {
-  if($block_dev =~ /^(fd|scr|sr|ram|loop|md|dm\-)[0-9]/) {
+  if($block_dev =~ m/^(fd|scr|sr|ram|loop|md|dm\-)[0-9]/) {
     next(BLOCK_DEVS_LOOP);
   }
-  if($block_dev =~ /^hd[a-z]/) {
+  if($block_dev =~ m/^hd[a-z]/) {
     my $device_type = `cat /sys/block/$block_dev/device/media 2>/dev/null`;
     chomp($device_type);
     if($device_type eq "cdrom" or $device_type eq "floppy") {
       next(BLOCK_DEVS_LOOP);
     }
   }
-  if($block_dev =~ /^sd[a-z]/) {
+  if($block_dev =~ m/^sd[a-z]/) {
     my $device_removable = `cat /sys/block/$block_dev/removable 2>/dev/null`;
     chomp($device_removable);
     if($device_removable eq "1") {
@@ -207,7 +207,7 @@ calibration_retries.warning 0
 EOF
         }
       }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
         print <<EOF;
 multigraph disk_errors_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -253,7 +253,7 @@ temperature.critical 50
 EOF
         }
       }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
         print <<EOF;
 multigraph disk_temperature_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -300,7 +300,7 @@ power_on_time.draw AREA
 power_on_time.colour 00d000
 EOF
       }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_on_time'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'power_on_time'})) {
         print <<EOF;
 multigraph disk_poh_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -328,7 +328,7 @@ start_stop_cycles.draw LINE2
 start_stop_cycles.colour 000080
 EOF
       }
-      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
+      if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
         print <<EOF;
 multigraph disk_power_cycles_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -372,7 +372,7 @@ foreach my $id (keys %disks) {
         print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
       }
     }
-    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
       print("multigraph disk_errors_$graph_name\n");
       print("defects.value " . $disks{$id}{'defects'} . "\n");
     }
@@ -382,7 +382,7 @@ foreach my $id (keys %disks) {
         print("temperature.value " . $disks{$id}{'smart'}{'194'}{'raw'} . "\n");
       }
     }
-    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'temperature'})) {
       print("multigraph disk_temperature_$graph_name\n");
       if(defined($disks{$id}{'temperature'})) {
         print("temperature.value " . $disks{$id}{'temperature'} . "\n");
@@ -392,7 +392,7 @@ foreach my $id (keys %disks) {
       print("multigraph disk_poh_$graph_name\n");
       print("power_on_time.value " . $disks{$id}{'smart'}{'9'}{'raw'} . "\n");
     }
-    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
       print("multigraph disk_poh_$graph_name\n");
       print("power_on_time.value " . $disks{$id}{'power_on_time'} . "\n");
     }
@@ -400,7 +400,7 @@ foreach my $id (keys %disks) {
       print("multigraph disk_power_cycles_$graph_name\n");
       print("start_stop_cycles.value " . $disks{$id}{'smart'}{'4'}{'raw'} . "\n");
     }
-    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ /^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'power_cycles'})) {
       print("multigraph disk_power_cycles_$graph_name\n");
       print("start_stop_cycles.value " . $disks{$id}{'power_cycles'} . "\n");
     }
@@ -420,7 +420,7 @@ sub read_smart() {
   %smart_data = ();
   if(open($exec_fd, "smartctl " . $params . " 2>/dev/null |")) {
     SMARTCTL_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
-      if($line =~ /please try adding '-d (.*),N'/) {
+      if($line =~ m/please try adding '-d (.*),N'/) {
         if($1 eq "megaraid") {
           $smart_data{'raid'} = "megaraid";
         }
@@ -428,55 +428,55 @@ sub read_smart() {
           $smart_data{'raid'} = "3ware";
         }
       }
-      if($line =~ /^ATA Version is:\s+(.*)$/) {
+      if($line =~ m/^ATA Version is:\s+(.*)$/) {
         $smart_data{'sata_version'} = $1;
         $smart_data{'type'} = "ATA";
       }
-      if($line =~ /^SATA Version is:\s+(.*)$/) {
+      if($line =~ m/^SATA Version is:\s+(.*)$/) {
         $smart_data{'sata_version'} = $1;
         $smart_data{'type'} = "SATA";
       }
-      if($line =~ /^Transport protocol:\s+(.*)$/) {
+      if($line =~ m/^Transport protocol:\s+(.*)$/) {
         $smart_data{'type'} = $1;
       }
-      if($line =~ /^Model Family:\s+(.*)$/) {
+      if($line =~ m/^Model Family:\s+(.*)$/) {
         $smart_data{'family'} = $1;
       }
-      if($line =~ /^Vendor:\s+(.*)$/) {
+      if($line =~ m/^Vendor:\s+(.*)$/) {
         $smart_data{'vendor'} = $1;
       }
-      if($line =~ /^(Device Model|Product):\s+(.*)$/) {
+      if($line =~ m/^(Device Model|Product):\s+(.*)$/) {
         $smart_data{'model'} = $2;
       }
-      if($line =~ /^Serial Number:\s+(.*)$/i) {
+      if($line =~ m/^Serial Number:\s+(.*)$/i) {
         $smart_data{'serial'} = $1;
       }
-      if($line =~ /^User Capacity:\s+(.*)$/) {
+      if($line =~ m/^User Capacity:\s+(.*)$/) {
         $smart_data{'capacity'} = $1;
       }
-      if($line =~ /^Rotation Rate:\s+(.*)$/) {
+      if($line =~ m/^Rotation Rate:\s+(.*)$/) {
         $smart_data{'rpm'} = $1;
       }
-      if($line =~ /^(Firmware Version|Revision):\s+(.*)$/) {
+      if($line =~ m/^(Firmware Version|Revision):\s+(.*)$/) {
         $smart_data{'firmware'} = $2;
       }
-      if($line =~ /^Manufactured in\s+(.*)$/) {
+      if($line =~ m/^Manufactured in\s+(.*)$/) {
         $smart_data{'manufactured'} = $1;
       }
-      if($line =~ /^Current Drive Temperature:\s+(.*)$/) {
+      if($line =~ m/^Current Drive Temperature:\s+(.*)$/) {
         $smart_data{'temperature'} = $1;
         $smart_data{'temperature'} =~ s/[^0-9]//g;
       }
-      if($line =~ /^Accumulated start-stop cycles:\s+(.*)$/) {
+      if($line =~ m/^Accumulated start-stop cycles:\s+(.*)$/) {
         $smart_data{'power_cycles'} = $1;
       }
-      if($line =~ /^Elements in grown defect list:\s+(.*)$/) {
+      if($line =~ m/^Elements in grown defect list:\s+(.*)$/) {
         $smart_data{'defects'} = $1;
       }
-      if($line =~ /^\s+number of hours powered up =\s+(.*)$/) {
+      if($line =~ m/^\s+number of hours powered up =\s+(.*)$/) {
         $smart_data{'power_on_time'} = $1;
       }
-      if($line =~ /^\s*([0-9]+)\s+([^\s]+)\s+([0-9a-fx]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([0-9]+)/) {
+      if($line =~ m/^\s*([0-9]+)\s+([^\s]+)\s+([0-9a-fx]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([0-9]+)/) {
         $smart_data{'smart'}{$1}{'name'} = $2;
         $smart_data{'smart'}{$1}{'raw'} = $10;
         $smart_data{'smart'}{$1}{'name'} =~ s/\s+//g;
@@ -484,7 +484,7 @@ sub read_smart() {
     }
     close($exec_fd);
     my $exit_code = $? >> 8;
-    if(defined($smart_data{'vendor'}) and defined($smart_data{'model'}) and $smart_data{'vendor'} =~ /^dell$/i and $smart_data{'model'} =~ /^perc h310$/i) {
+    if(defined($smart_data{'vendor'}) and defined($smart_data{'model'}) and $smart_data{'vendor'} =~ m/^dell$/i and $smart_data{'model'} =~ m/^perc h310$/i) {
       $smart_data{'raid'} = "perc_h310";
     }
     return($exit_code);
