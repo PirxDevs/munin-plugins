@@ -26,7 +26,7 @@ Linux systems with ping command available.
 
 =head1 CONFIGURATION
 
-4This plugin requires special configuration to work properly. Lets
+This plugin requires special configuration to work properly. Lets
 assume that you want to monitor RTT between your Linux router (IP
 address 10.10.10.1) and WAN gateway (IP address 10.20.20.1). You
 can do this with following configuration:
