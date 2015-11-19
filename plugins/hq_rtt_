@@ -88,7 +88,7 @@ if(!defined($graph_name) or $graph_name eq "") {
   exit(1);
 }
 
-# set warning and critical thresholds
+# Set warning and critical thresholds
 my $rtt_warning = 100;
 my $rtt_critical = 500;
 my $loss_warning = 5;
@@ -105,7 +105,7 @@ if(defined($ENV{$graph_name . '_loss_warning'})) {
 if(defined($ENV{$graph_name . '_loss_critical'})) {
   $loss_critical = $ENV{$graph_name . '_loss_critical'};
 }
-# read config from ENV
+# Read config from ENV
 my $src_ip;
 my $dst_ip;
 my $title;
