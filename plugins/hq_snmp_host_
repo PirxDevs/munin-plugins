@@ -1,0 +1,557 @@
+#!/usr/bin/perl
+# -*- perl -*-
+
+# Copyright (C) 2015 Pirx Developers - https://pirx.dev/
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=head1 NAME
+
+hq_snmp_host_ - Munin wildcard plugin to monitor host CPU, memory, swap
+and storage via SNMP
+
+=head1 APPLICABLE SYSTEMS
+
+Linux system with access to remote host through SNMP.
+
+=head1 CONFIGURATION
+
+This plugin requires special configuration to work properly. For each
+SNMP host you must configure name which will be used by munin-node,
+hostname or ip address and SNMP community
+name:
+
+[hq_snmp_host_*]
+  env.host1_name host1.domain.com
+  env.host1_address 192.168.100.1
+  env.host1_community public
+  env.host1_name host2.domain.com
+  env.host2_address 192.168.100.2
+  env.host2_community something
+
+Now symlink hq_snmp_host_ as hq_snmp_host_host1 and as hq_snmp_host_host2
+in your munin plugins directory. Thats all.
+
+Additionally you may configure warning levels for some graphs.
+Add following to your munin-node config if necessary:
+
+[hq_snmp_host_*]
+  env.cpu_warning 80
+  env.cpu_critical 90
+  env.disk_warning 90
+  env.disk_critical 95
+  env.memory_warning 95
+  env.memory_critical 99
+  env.swap_warning 50
+  env.swap_critical 80
+
+=head1 VERSION
+
+  20151120.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv3
+
+=cut
+
+use strict;
+use warnings;
+use Net::SNMP qw(:ALL);
+use Munin::Plugin;
+
+sub walk_oids;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("no\n");
+  exit(0);
+}
+
+need_multigraph();
+
+my ($graph_name) = $0 =~ /.*\/hq_snmp_host_(.*)$/;
+
+if(!defined($graph_name) or $graph_name eq "") {
+  print("Error: invalid symlink name\n");
+  exit(1);
+}
+
+# Set warning and critical thresholds
+my $cpu_warning = 80;
+my $cpu_critical = 90;
+my $disk_warning = 90;
+my $disk_critical = 95;
+my $memory_warning = 95;
+my $memory_critical = 99;
+my $swap_warning = 50;
+my $swap_critical = 80;
+if(defined($ENV{'cpu_warning'})) {
+  $cpu_warning = $ENV{'cpu_warning'};
+}
+if(defined($ENV{'cpu_critical'})) {
+  $cpu_critical = $ENV{'cpu_critical'};
+}
+if(defined($ENV{'disk_warning'})) {
+  $disk_warning = $ENV{'disk_warning'};
+}
+if(defined($ENV{'disk_critical'})) {
+  $disk_critical = $ENV{'disk_critical'};
+}
+if(defined($ENV{'memory_warning'})) {
+  $memory_warning = $ENV{'memory_warning'};
+}
+if(defined($ENV{'memory_critical'})) {
+  $memory_critical = $ENV{'memory_critical'};
+}
+if(defined($ENV{'swap_warning'})) {
+  $swap_warning = $ENV{'swap_warning'};
+}
+if(defined($ENV{'swap_critical'})) {
+  $swap_critical = $ENV{'swap_critical'};
+}
+
+# Read config from ENV
+my $host_name;
+my $host_address;
+my $host_community;
+if(defined($ENV{$graph_name . '_name'})) {
+  $host_name = $ENV{$graph_name . '_name'};
+}
+if(defined($ENV{$graph_name . '_address'})) {
+  $host_address = $ENV{$graph_name . '_address'};
+}
+if(defined($ENV{$graph_name . '_community'})) {
+  $host_community = $ENV{$graph_name . '_community'};
+}
+
+if(!defined($host_name) or $host_name eq "" or !defined($host_address) or $host_address eq "" or !defined($host_community) or $host_community eq "") {
+  print("Error: incomplete configuration\n");
+  exit(1);
+}
+
+# Connect to SNMP server on host
+my ($session, $error) = Net::SNMP->session(
+  -hostname  => $host_address,
+  -community => $host_community,
+  -timeout => 30,
+  -retries => 3,
+);
+if(!defined($session))
+  {
+  print("SNMP connection error. Exiting.\n");
+  exit(1);
+}
+
+my %snmp_data;
+
+my $uptime;
+%snmp_data = %{walk_oids($session, "1.3.6.1.2.1.25.1.1")};
+if(defined($snmp_data{'1.3.6.1.2.1.25.1.1.0'})) {
+  ($uptime) = $snmp_data{'1.3.6.1.2.1.25.1.1.0'} =~ /^(\d+)/;
+}
+else {
+  $uptime = "U";
+}
+
+my $processes;
+%snmp_data = %{walk_oids($session, "1.3.6.1.2.1.25.1.6")};
+if(defined($snmp_data{'1.3.6.1.2.1.25.1.6.0'})) {
+  ($processes) = $snmp_data{'1.3.6.1.2.1.25.1.6.0'} =~ /^(\d+)$/;
+}
+else {
+  $processes = "U";
+}
+
+my %cpus;
+%snmp_data = %{walk_oids($session, "1.3.6.1.2.1.25.3.3.1.2")};
+my $cpu_min_id = -1;
+foreach my $oid (sort keys %snmp_data) {
+  if($cpu_min_id == -1) {
+    ($cpu_min_id) = $oid =~ m/^1\.3\.6\.1\.2\.1\.25\.3\.3\.1\.2\.(\d+)$/;
+  }
+  my ($cpu_id) = $oid =~ m/^1\.3\.6\.1\.2\.1\.25\.3\.3\.1\.2\.(\d+)$/;
+  $cpus{$cpu_id - $cpu_min_id} = $snmp_data{$oid};
+}
+
+my %device_types = (
+  '1' => 'other',
+  '2' => 'physical_memory',
+  '3' => 'virtual_memory',
+  '4' => 'disk',
+  '5' => 'removable_disk',
+  '6' => 'floppy',
+  '7' => 'optical_drive',
+  '8' => 'ramdisk',
+  '9' => 'flash_memory',
+  '10' => 'network_disk',
+);
+
+my %devices;
+%snmp_data = %{walk_oids($session, "1.3.6.1.2.1.25.2.3")};
+foreach my $oid (sort keys %snmp_data) {
+  my ($key, $id) = $oid =~ m/^1\.3\.6\.1\.2\.1\.25\.2\.3\.1\.(\d+)\.(\d+)$/;
+  if($key eq "2") {
+    $snmp_data{$oid} =~ s/^1\.3\.6\.1\.2\.1\.25\.2\.1\.//;
+    $devices{$id}{'type'} = $snmp_data{$oid};
+    $devices{$id}{'type_txt'} = $device_types{$snmp_data{$oid}};
+  }
+  if($key eq "3") {
+    $devices{$id}{'description'} = $snmp_data{$oid};
+  }
+  if($key eq "4") {
+    $devices{$id}{'units'} = $snmp_data{$oid};
+  }
+  if($key eq "5") {
+    $devices{$id}{'size'} = $snmp_data{$oid};
+  }
+  if($key eq "6") {
+    $devices{$id}{'used'} = $snmp_data{$oid};
+  }
+}
+foreach my $device_id (sort keys %devices) {
+  $devices{$device_id}{'size'} = $devices{$device_id}{'size'} * $devices{$device_id}{'units'};
+  $devices{$device_id}{'used'} = $devices{$device_id}{'used'} * $devices{$device_id}{'units'};
+  $devices{$device_id}{'free'} = $devices{$device_id}{'size'} - $devices{$device_id}{'used'};
+}
+
+# Close SNMP connection
+$session->close();
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  print <<EOF;
+multigraph $graph_name\_uptime
+host_name $host_name
+graph_title System uptime
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_vlabel days
+graph_category system
+
+uptime.label Uptime
+uptime.type GAUGE
+uptime.min 0
+uptime.draw AREA
+uptime.colour 00d000
+
+multigraph $graph_name\_processes
+host_name $host_name
+graph_title Running processes
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_category processes
+
+processes.label Processes
+processes.type GAUGE
+processes.min 0
+processes.draw AREA
+processes.colour 0000a0
+
+EOF
+
+  my $graph_order = "";
+  foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+    $graph_order .= " cpu" . $cpu_num;
+  }
+  print <<EOF;
+multigraph $graph_name\_cpu_usage
+host_name $host_name
+graph_title CPU usage
+graph_args --base 1000 --lower-limit 0 --upper-limit 100
+graph_order$graph_order
+graph_scale no
+graph_vlabel %
+graph_category cpu
+
+EOF
+  foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+    print <<EOF;
+cpu$cpu_num.label CPU core $cpu_num
+cpu$cpu_num.type GAUGE
+cpu$cpu_num.draw LINE1
+cpu$cpu_num.min 0
+cpu$cpu_num.max 100
+cpu$cpu_num.warning $cpu_warning
+cpu$cpu_num.critical $cpu_critical
+EOF
+    if($cpu_num == 0) {
+      print("cpu" . $cpu_num . ".line " . $cpu_warning . ":ffff00:Warning threshold\n");
+    }
+  }
+
+foreach my $device_id (sort keys %devices) {
+  if($devices{$device_id}{'type'} eq "2") {
+    my $warning = $devices{$device_id}{'size'} * $memory_warning / 100;
+    my $critical = $devices{$device_id}{'size'} * $memory_critical / 100;
+    my $used_color = "0000ff";
+    if($devices{$device_id}{'used'} > $warning) {
+      $used_color = "ff9500";
+    }
+    if($devices{$device_id}{'used'} > $critical) {
+      $used_color = "ff0000";
+    }
+    print <<EOF;
+multigraph $graph_name\_memory_usage
+host_name $host_name
+graph_title Memory usage
+graph_order used free size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category memory
+
+free.label Free memory
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+used.label Used memory
+used.type GAUGE
+used.draw AREASTACK
+used.colour $used_color
+used.line $warning:ffff00:Warning threshold
+used.warning $warning
+used.critical $critical
+size.label Memory size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+
+EOF
+  }
+  if($devices{$device_id}{'type'} eq "3") {
+    my $warning = $devices{$device_id}{'size'} * $swap_warning / 100;
+    my $critical = $devices{$device_id}{'size'} * $swap_critical / 100;
+    my $used_color = "0000ff";
+    if($devices{$device_id}{'used'} > $warning) {
+      $used_color = "ff9500";
+    }
+    if($devices{$device_id}{'used'} > $critical) {
+      $used_color = "ff0000";
+    }
+    print <<EOF;
+multigraph $graph_name\_swap_usage
+host_name $host_name
+graph_title Swap usage
+graph_order used free size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category memory
+
+free.label Free swap
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+used.label Used swap
+used.type GAUGE
+used.draw AREASTACK
+used.colour $used_color
+used.line $warning:ffff00:Warning threshold
+used.warning $warning
+used.critical $critical
+size.label Swap size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+
+EOF
+  }
+  if($devices{$device_id}{'type'} eq "4") {
+    if($devices{$device_id}{'size'} == 0) {
+      next;
+    }
+    if($devices{$device_id}{'description'} =~ m!/(dev|proc|sys|run)!) {
+      next;
+    }
+    my $disk;
+    my $label;
+    if($devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:/) {
+      ($disk, $label) = $devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:(.*)\s+Serial/;
+      $label =~ s/\s+$//;
+      if($label ne "") {
+        $label = $disk . ": (" . $label . ")";
+      }
+    }
+    else {
+      if($devices{$device_id}{'description'} eq "/") {
+        $disk = "root";
+      }
+      else {
+        $disk = $devices{$device_id}{'description'};
+        $disk =~ s!^/!!g;
+        $disk =~ s/[^a-zA-Z0-9]/_/g;
+      }
+      $label = $devices{$device_id}{'description'};
+    }
+    my $warning = $devices{$device_id}{'size'} * $disk_warning / 100;
+    my $critical = $devices{$device_id}{'size'} * $disk_critical / 100;
+    my $used_color = "0000ff";
+    if($devices{$device_id}{'used'} > $warning) {
+      $used_color = "ff9500";
+    }
+    if($devices{$device_id}{'used'} > $critical) {
+      $used_color = "ff0000";
+    }
+    print <<EOF;
+multigraph $graph_name\_disk_$disk
+host_name $host_name
+graph_title $label
+graph_order used free size
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category storage
+
+free.label Free
+free.type GAUGE
+free.draw AREASTACK
+free.colour 00ff00
+used.label Used
+used.type GAUGE
+used.draw AREASTACK
+used.colour $used_color
+used.line $warning:ffff00:Warning threshold
+used.warning $warning
+used.critical $critical
+size.label Size
+size.type GAUGE
+size.draw LINE1
+size.colour 000000
+
+EOF
+  }
+}
+
+  exit(0);
+}
+
+print <<EOF;
+multigraph $graph_name\_uptime
+uptime.value $uptime
+multigraph $graph_name\_processes
+processes.value $processes
+multigraph $graph_name\_cpu_usage
+EOF
+
+foreach my $cpu_num (sort {$a <=> $b} keys %cpus) {
+  print("cpu" . $cpu_num . ".value " . $cpus{$cpu_num} . "\n");
+}
+
+foreach my $device_id (sort keys %devices) {
+  if($devices{$device_id}{'type'} eq "2") {
+    print <<EOF;
+multigraph $graph_name\_memory_usage
+free.value $devices{$device_id}{'free'}
+used.value $devices{$device_id}{'used'}
+size.value $devices{$device_id}{'size'}
+EOF
+  }
+  if($devices{$device_id}{'type'} eq "3") {
+    print <<EOF;
+multigraph $graph_name\_swap_usage
+free.value $devices{$device_id}{'free'}
+used.value $devices{$device_id}{'used'}
+size.value $devices{$device_id}{'size'}
+EOF
+  }
+  if($devices{$device_id}{'type'} eq "4") {
+    if($devices{$device_id}{'size'} == 0) {
+      next;
+    }
+    if($devices{$device_id}{'description'} =~ m!/(dev|proc|sys|run)!) {
+      next;
+    }
+    my $disk;
+    if($devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:/) {
+      ($disk) = $devices{$device_id}{'description'} =~ m/^([A-Z]):/;
+    }
+    else {
+      if($devices{$device_id}{'description'} eq "/") {
+        $disk = "root";
+      }
+      else {
+        $disk = $devices{$device_id}{'description'};
+        $disk =~ s!^/!!g;
+        $disk =~ s/[^a-zA-Z0-9]/_/g;
+      }
+    }
+    print <<EOF;
+multigraph $graph_name\_disk_$disk
+free.value $devices{$device_id}{'free'}
+used.value $devices{$device_id}{'used'}
+size.value $devices{$device_id}{'size'}
+EOF
+  }
+}
+
+exit(0);
+
+sub walk_oids() {
+  my ($session, $search_oid) = @_;
+  my @args = (-varbindlist => [$search_oid],);
+  my $last_oid = $search_oid;
+  my %oids;
+
+  if ($session->version() == SNMP_VERSION_1) {
+    while(defined $session->get_next_request(@args)) {
+      my $oid = ($session->var_bind_names())[0];
+      if (oid_lex_cmp($last_oid, $oid) >= 0) {
+        return \%oids;
+      }
+      if(!oid_base_match($search_oid, $oid)) {
+        last;
+      }
+      $oids{$oid} = $session->var_bind_list()->{$oid};
+      $last_oid = $oid;
+      @args = (-varbindlist => [$last_oid]);
+      }
+    }
+  else {
+    push @args, -maxrepetitions => 25;
+    GET_BULK: while (defined $session->get_bulk_request(@args)) {
+      my @oids = $session->var_bind_names();
+      if(!scalar @oids) {
+        return \%oids;
+      }
+      for my $oid (@oids) {
+        if($session->var_bind_types()->{$oid} == ENDOFMIBVIEW) {
+          $oids{$oid} = $session->var_bind_list()->{$oid};
+          $last_oid = $oid;
+          last GET_BULK;
+          }
+        if (oid_lex_cmp($last_oid, $oid) >= 0) {
+          return \%oids;
+        }
+        if(!oid_base_match($search_oid, $oid)) {
+          last GET_BULK;
+        }
+        $oids{$oid} = $session->var_bind_list()->{$oid};
+        $last_oid = $oid;
+        }
+      @args = (-maxrepetitions => 25, -varbindlist => [$last_oid]);
+      }
+    }
+  return \%oids;
+}
