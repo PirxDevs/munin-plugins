@@ -1,3 +1,8 @@
+* 20151120.01
+  - added snmp_host plugin for monitoring CPU, memory, swap and storage usage
+    via SNMP
+  - bunch of small/cosmetic fixes like descriptions, code comments etc.
+
 * 20151117.01
   - exclude reserved space when calculating warning/critical thresholds in
     storage plugin
