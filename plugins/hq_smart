@@ -392,7 +392,7 @@ foreach my $id (keys %disks) {
       print("multigraph disk_poh_$graph_name\n");
       print("power_on_time.value " . $disks{$id}{'smart'}{'9'}{'raw'} . "\n");
     }
-    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
+    if(($disks{$id}{'type'} eq "SAS" or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'power_on_time'})) {
       print("multigraph disk_poh_$graph_name\n");
       print("power_on_time.value " . $disks{$id}{'power_on_time'} . "\n");
     }
