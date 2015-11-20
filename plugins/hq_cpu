@@ -141,7 +141,7 @@ EOF
     print <<EOF;
 cpu$cpu_num.label CPU core $cpu_num
 cpu$cpu_num.type GAUGE
-cpu$cpu_num.draw LINE
+cpu$cpu_num.draw LINE1
 cpu$cpu_num.min 0
 cpu$cpu_num.max 100
 cpu$cpu_num.warning $warning
