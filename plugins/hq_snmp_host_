@@ -448,7 +448,10 @@ EOF
     if($system eq "windows") {
       ($disk, $label) = $devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:(.*)\s+Serial/;
       $label =~ s/\s+$//;
-      if($label ne "") {
+      if($label eq "") {
+        $label = $disk . ":";
+      }
+      else {
         $label = $disk . ": (" . $label . ")";
       }
     }
