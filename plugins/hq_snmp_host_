@@ -625,6 +625,31 @@ EOF
   }
 }
 
+foreach my $netif_id (sort keys %netifs) {
+  if($system eq "windows") {
+    if($netifs{$netif_id}{'description'} =~ m/(Miniport|ISATAP|isatap|Loopback|RAS|Filter|Scheduler|Pseudo)/) {
+      next;
+    }
+  }
+  elsif($system eq "linux") {
+    if($netifs{$netif_id}{'name'} eq "lo") {
+      next;
+    }
+  }
+  my $netif = $netifs{$netif_id}{'name'};
+  $netif =~ s/[^a-zA-Z0-9]/_/g;
+  print <<EOF;
+multigraph $graph_name\_$netif\_traffic
+rx_bytes.value $netifs{$netif_id}{'rx'}
+tx_bytes.value $netifs{$netif_id}{'tx'}
+multigraph $graph_name\_$netif\_errors
+rx_errors.value $netifs{$netif_id}{'rx_errors'}
+tx_errors.value $netifs{$netif_id}{'tx_errors'}
+rx_discards.value $netifs{$netif_id}{'rx_discards'}
+tx_discards.value $netifs{$netif_id}{'tx_discards'}
+EOF
+}
+
 exit(0);
 
 sub walk_oids() {
