@@ -58,7 +58,7 @@ Add following to your munin-node config if necessary:
 
 =head1 VERSION
 
-  20151120.01
+  20151123.01
 
 =head1 MAGIC MARKERS
 
@@ -83,6 +83,7 @@ use strict;
 use warnings;
 use Net::SNMP qw(:ALL);
 use Munin::Plugin;
+use Encode qw(encode decode);
 
 sub walk_oids;
 
@@ -169,6 +170,21 @@ if(!defined($session))
 
 my %snmp_data;
 
+my $system;
+
+%snmp_data = %{walk_oids($session, "1.3.6.1.2.1.1.1")};
+if(defined($snmp_data{'1.3.6.1.2.1.1.1.0'})) {
+  if($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /Software: Windows Version/) {
+    $system = "windows";
+  }
+  elsif($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /^Linux/) {
+    $system = "linux";
+  }
+  elsif($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /^VMware ESXi/) {
+    $system = "esxi";
+  }
+}
+
 my $uptime;
 %snmp_data = %{walk_oids($session, "1.3.6.1.2.1.25.1.1")};
 if(defined($snmp_data{'1.3.6.1.2.1.25.1.1.0'})) {
@@ -234,9 +250,50 @@ foreach my $oid (sort keys %snmp_data) {
   }
 }
 foreach my $device_id (sort keys %devices) {
+  if($devices{$device_id}{'size'} == 0) {
+    next;
+  }
   $devices{$device_id}{'size'} = $devices{$device_id}{'size'} * $devices{$device_id}{'units'};
   $devices{$device_id}{'used'} = $devices{$device_id}{'used'} * $devices{$device_id}{'units'};
   $devices{$device_id}{'free'} = $devices{$device_id}{'size'} - $devices{$device_id}{'used'};
+}
+
+my %netifs;
+%snmp_data = %{walk_oids($session, "1.3.6.1.2.1.2.2.1")};
+foreach my $oid (sort keys %snmp_data) {
+  my ($key, $id) = $oid =~ m/^1\.3\.6\.1\.2\.1\.2\.2\.1\.(\d+)\.(\d+)$/;
+  if($key eq "1") {
+    $netifs{$id}{'name'} = $session->get_request(-varbindlist => ["1.3.6.1.2.1.31.1.1.1.1." . $id])->{"1.3.6.1.2.1.31.1.1.1.1." . $id};
+    $netifs{$id}{'name'} =~ s/(\s+|\x00)$//;
+    $netifs{$id}{'alias'} = $session->get_request(-varbindlist => ["1.3.6.1.2.1.31.1.1.1.18." . $id])->{"1.3.6.1.2.1.31.1.1.1.18." . $id};
+    $netifs{$id}{'alias'} =~ s/(\s+|\x00)$//;
+  }
+  if($key eq "2") {
+    $netifs{$id}{'description'} = $snmp_data{$oid};
+    if($netifs{$id}{'description'} =~ m/^0x[0-9a-f]+$/) {
+      $netifs{$id}{'description'} =~ s/^0x//;
+      $netifs{$id}{'description'} = encode('ascii', pack("H*", uc($netifs{$id}{'description'})));
+    }
+    $netifs{$id}{'description'} =~ s/(\s+|\x00)$//;
+  }
+  if($key eq "10") {
+    $netifs{$id}{'rx'} = $snmp_data{$oid};
+  }
+  if($key eq "13") {
+    $netifs{$id}{'rx_discards'} = $snmp_data{$oid};
+  }
+  if($key eq "14") {
+    $netifs{$id}{'rx_errors'} = $snmp_data{$oid};
+  }
+  if($key eq "16") {
+    $netifs{$id}{'tx'} = $snmp_data{$oid};
+  }
+  if($key eq "19") {
+    $netifs{$id}{'tx_discards'} = $snmp_data{$oid};
+  }
+  if($key eq "20") {
+    $netifs{$id}{'tx_errors'} = $snmp_data{$oid};
+  }
 }
 
 # Close SNMP connection
@@ -388,14 +445,14 @@ EOF
     }
     my $disk;
     my $label;
-    if($devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:/) {
+    if($system eq "windows") {
       ($disk, $label) = $devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:(.*)\s+Serial/;
       $label =~ s/\s+$//;
       if($label ne "") {
         $label = $disk . ": (" . $label . ")";
       }
     }
-    else {
+    elsif($system eq "linux") {
       if($devices{$device_id}{'description'} eq "/") {
         $disk = "root";
       }
@@ -444,6 +501,68 @@ EOF
   }
 }
 
+foreach my $netif_id (sort keys %netifs) {
+  if($system eq "windows") {
+    if($netifs{$netif_id}{'description'} =~ m/(Miniport|ISATAP|isatap|Loopback|RAS|Filter|Scheduler|Pseudo)/) {
+      next;
+    }
+  }
+  elsif($system eq "linux") {
+    if($netifs{$netif_id}{'name'} eq "lo") {
+      next;
+    }
+  }
+  my $netif = $netifs{$netif_id}{'name'};
+  $netif =~ s/[^a-zA-Z0-9]/_/g;
+  print <<EOF;
+
+multigraph $graph_name\_$netif\_traffic
+graph_title Traffic on $netifs{$netif_id}{'description'}
+graph_order rx_bytes tx_bytes
+graph_args --base 1024 --lower-limit 0
+graph_vlabel bytes
+graph_category netif
+
+rx_bytes.label Incoming traffic
+rx_bytes.type DERIVE
+rx_bytes.min 0
+rx_bytes.draw AREA
+rx_bytes.colour 00ff00
+tx_bytes.label Outgoing traffic
+tx_bytes.type DERIVE
+tx_bytes.min 0
+tx_bytes.draw LINE1
+tx_bytes.colour 0000ff
+
+multigraph $graph_name\_$netif\_errors
+graph_title Errors on $netifs{$netif_id}{'description'}
+graph_order rx_errors tx_errors rx_discards tx_discards
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_category netif
+
+rx_errors.label RX errors
+rx_errors.type DERIVE
+rx_errors.min 0
+rx_errors.draw AREASTACK
+rx_errors.colour 0000ff
+tx_errors.label TX errors
+tx_errors.type DERIVE
+tx_errors.min 0
+tx_errors.draw AREASTACK
+tx_errors.colour ff00ff
+rx_discards.label RX discards
+rx_discards.type DERIVE
+rx_discards.min 0
+rx_discards.draw AREASTACK
+rx_discards.colour ff0000
+tx_discards.label TX discards
+tx_discards.type DERIVE
+tx_discards.min 0
+tx_discards.draw AREASTACK
+tx_discards.colour ff9500
+EOF
+}
   exit(0);
 }
 
@@ -480,14 +599,14 @@ EOF
     if($devices{$device_id}{'size'} == 0) {
       next;
     }
-    if($devices{$device_id}{'description'} =~ m!/(dev|proc|sys|run)!) {
+    if($system eq "linux" and $devices{$device_id}{'description'} =~ m!/(dev|proc|sys|run)!) {
       next;
     }
     my $disk;
-    if($devices{$device_id}{'description'} =~ m/^([A-Z]):.*Label:/) {
+    if($system eq "windows") {
       ($disk) = $devices{$device_id}{'description'} =~ m/^([A-Z]):/;
     }
-    else {
+    elsif($system eq "linux" or $system eq "esxi") {
       if($devices{$device_id}{'description'} eq "/") {
         $disk = "root";
       }
