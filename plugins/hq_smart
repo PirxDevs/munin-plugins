@@ -420,6 +420,7 @@ sub read_smart() {
   %smart_data = ();
   if(open($exec_fd, "smartctl " . $params . " 2>/dev/null |")) {
     SMARTCTL_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+      $line =~ s/\s+$//;
       if($line =~ m/please try adding '-d (.*),N'/) {
         if($1 eq "megaraid") {
           $smart_data{'raid'} = "megaraid";
