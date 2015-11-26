@@ -41,6 +41,9 @@ short as possible), login is username used to authenticate in upsd,
 192.168.100.15 is server ip address (you may use hostname too) and
 3493 is port number. Note: if omitted port will be set to default 3493.
 
+Now symlink hq_nut_ as hq_nut_ups1 in your munin plugins directory
+and thats all.
+
 You may also want to configure warning and critical thresholds
 in your munin node configuration:
 
