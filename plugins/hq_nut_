@@ -1,0 +1,673 @@
+#!/usr/bin/perl
+# -*- perl -*-
+
+# Copyright (C) 2015 Pirx Developers - https://pirx.dev/
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=head1 NAME
+
+hq_nut_ - Munin wildcard plugin to monitor UPS devices via NUT.
+
+=head1 APPLICABLE SYSTEMS
+
+Linux systems with NUT client (upsc) installed.
+
+=head1 CONFIGURATION
+
+This plugin requires special configuration to work properly. For each
+UPS device you must configure UPS name that will be used by munin-node,
+login, hostname or ip address and port:
+
+[hq_nut_*]
+  env.ups1_name Server room, UPS-1
+  env.ups1_login apc
+  env.ups1_address 192.168.100.15
+  env.ups1_port 3493
+
+where name is any string that will be used as graph title (keep it as
+short as possible), login is username used to authenticate in upsd,
+192.168.100.15 is server ip address (you may use hostname too) and
+3493 is port number. Note: if omitted port will be set to default 3493.
+
+You may also want to configure warning and critical thresholds
+in your munin node configuration:
+
+[hq_nut_*]
+  env.battery_warning 50
+  env.battery_critical 25
+  env.runtime_warning 15
+  env.runtime_critical 10
+  env.in_voltage_warning_min 220
+  env.in_voltage_warning_max 240
+  env.in_voltage_critical_min 210
+  env.in_voltage_critical_max 250
+
+Default thresholds for battery load are less than 50%
+for warning and less than 25% for critical. For battery
+runtime they are less than 15 minutes for warning and
+less than 10 minutes for critical.
+
+=head1 VERSION
+
+  20151126.01
+
+=head1 MAGIC MARKERS
+
+  #%# family=manual
+  #%# capabilities=autoconf
+
+=head1 BUGS
+
+None.
+
+=head1 AUTHOR
+
+Pirx Developers - https://pirx.dev/
+
+=head1 LICENSE
+
+GPLv3
+
+=cut
+
+use strict;
+use warnings;
+use Munin::Plugin;
+
+# Handle autoconf
+if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
+  print("no\n");
+  exit(0);
+}
+
+my ($graph_name) = $0 =~ /.*\/hq_nut_(.*)$/;
+
+if(!defined($graph_name) or $graph_name eq "") {
+  print("Error: invalid symlink name\n");
+  exit(1);
+}
+
+# read config from ENV
+my $ups_name;
+my $ups_login;
+my $ups_address;
+my $ups_port;
+if(defined($ENV{$graph_name . '_name'})) {
+  $ups_name = $ENV{$graph_name . '_name'};
+}
+if(defined($ENV{$graph_name . '_login'})) {
+  $ups_login = $ENV{$graph_name . '_login'};
+}
+if(defined($ENV{$graph_name . '_address'})) {
+  $ups_address = $ENV{$graph_name . '_address'};
+}
+if(defined($ENV{$graph_name . '_port'})) {
+  $ups_port = $ENV{$graph_name . '_port'};
+}
+else {
+  $ups_port = "3493";
+}
+
+if(!defined($ups_name) or $ups_name eq "" or !defined($ups_login) or $ups_login eq "" or !defined($ups_address) or $ups_address eq "" or !defined($ups_port) or $ups_port eq "") {
+  print("Error: incomplete configuration.\n");
+  exit(1);
+}
+
+#need_multigraph();
+
+# Read and parse upsc output
+my %ups_data;
+my $exec_fd;
+if(open($exec_fd, "upsc " . $ups_login . "@" . $ups_address . ":" . $ups_port . " 2>/dev/null |")) {
+  UPSC_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
+    if($line =~ m/^(.*):\s+(.*)$/) {
+      $ups_data{$1} = $2;
+    }
+  }
+  close($exec_fd);
+}
+else {
+  print("Error running upsc command. Exiting.\n");
+  exit(1);
+}
+
+# Set warning and critical thresholds
+my $battery_warning = 50;
+my $battery_critical = 25;
+if(defined($ENV{'battery_warning'})) {
+  $battery_warning = $ENV{'battery_warning'};
+}
+if(defined($ENV{'battery_critical'})) {
+  $battery_critical = $ENV{'battery_critical'};
+}
+
+my $runtime_warning = 15;
+my $runtime_critical = 10;
+if(defined($ENV{'runtime_warning'})) {
+  $runtime_warning = $ENV{'runtime_warning'};
+}
+if(defined($ENV{'runtime_critical'})) {
+  $runtime_critical = $ENV{'runtime_critical'};
+}
+
+my $in_voltage_warning_min = 220;
+my $in_voltage_warning_max = 240;
+my $in_voltage_critical_min = 210;
+my $in_voltage_critical_max = 250;
+if(defined($ENV{'in_voltage_warning_min'})) {
+  $in_voltage_warning_min = $ENV{'in_voltage_warning_min'};
+}
+if(defined($ENV{'in_voltage_warning_max'})) {
+  $in_voltage_warning_max = $ENV{'in_voltage_warning_max'};
+}
+if(defined($ENV{'in_voltage_critical_min'})) {
+  $in_voltage_critical_min = $ENV{'in_voltage_critical_min'};
+}
+if(defined($ENV{'in_voltage_critical_max'})) {
+  $in_voltage_critical_max = $ENV{'in_voltage_critical_max'};
+}
+
+# Handle config
+if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
+  $graph_name =~ s/[^a-zA-Z0-9]/_/g;
+  # Battery status graph
+  if(defined($ups_data{'battery.charge'}) or defined($ups_data{'battery.runtime'})) {
+    my $graph_order = "";
+    if(defined($ups_data{'battery.charge'})) {
+      $graph_order .= " battery_charge";
+    }
+    if(defined($ups_data{'battery.runtime'})) {
+      $graph_order .= " battery_runtime";
+    }
+      print <<EOF;
+multigraph nut_$graph_name\_battery
+graph_title $ups_name - battery status
+graph_order$graph_order
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_category ups
+EOF
+    if(defined($ups_data{'battery.charge'})) {
+      print <<EOF;
+battery_charge.label Battery charge percentage
+battery_charge.type GAUGE
+battery_charge.draw AREA
+battery_charge.colour 00ff00
+battery_charge.warning $battery_warning:
+battery_charge.critical $battery_critical:
+EOF
+    }
+    if(defined($ups_data{'battery.runtime'})) {
+      print <<EOF;
+battery_runtime.label Battery runtime in minutes
+battery_runtime.type GAUGE
+battery_runtime.draw LINE2
+battery_runtime.colour 0000ff
+battery_runtime.warning $runtime_warning:
+battery_runtime.critical $runtime_critical:
+EOF
+    }
+  }
+  # Battery voltage graph
+  if(defined($ups_data{'battery.voltage'})) {
+    print <<EOF;
+multigraph nut_$graph_name\_battery_voltage
+graph_title $ups_name - battery voltage
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_category ups
+battery_voltage.label Battery voltage
+battery_voltage.type GAUGE
+battery_voltage.draw LINE2
+battery_voltage.colour ff0000
+EOF
+  }
+  # Temperature graph
+  if(defined($ups_data{'battery.temperature'}) or defined($ups_data{'ambient.temperature'}) or defined($ups_data{'ups.temperature'})) {
+    print <<EOF;
+multigraph nut_$graph_name\_temperatures
+graph_title $ups_name - temperature
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_category ups
+EOF
+    if(defined($ups_data{'battery.temperature'})) {
+      print <<EOF;
+battery_temperature.label Battery temperature
+battery_temperature.type GAUGE
+battery_temperature.draw LINE2
+battery_temperature.colour ff0000
+EOF
+    }
+    if(defined($ups_data{'ups.temperature'})) {
+      print <<EOF;
+ups_temperature.label UPS temperature
+ups_temperature.type GAUGE
+ups_temperature.draw LINE2
+ups_temperature.colour ff00ff
+EOF
+    }
+    if(defined($ups_data{'ambient.temperature'})) {
+      print <<EOF;
+ambient_temperature.label Ambient temperature
+ambient_temperature.type GAUGE
+ambient_temperature.draw LINE2
+ambient_temperature.colour 0000ff
+EOF
+    }
+  }
+  # Handle 3-phase devices
+  if(defined($ups_data{'input.phases'}) and $ups_data{'input.phases'} == 3) {
+    # Load percentage graph
+    if(defined($ups_data{'output.L1.power.percent'}) or defined($ups_data{'output.L2.power.percent'}) or defined($ups_data{'output.L3.power.percent'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_load
+graph_title $ups_name - load
+graph_args --base 1024 --lower-limit 0
+graph_vlabel %
+graph_scale no
+graph_category ups
+EOF
+      if(defined($ups_data{'output.L1.power.percent'})) {
+        print <<EOF;
+load_l1.label L1 load
+load_l1.type GAUGE
+load_l1.draw LINE2
+load_l1.colour ff0000
+EOF
+      }
+      if(defined($ups_data{'output.L2.power.percent'})) {
+        print <<EOF;
+load_l2.label L2 load
+load_l2.type GAUGE
+load_l2.draw LINE2
+load_l2.colour ff00ff
+EOF
+      }
+      if(defined($ups_data{'output.L3.power.percent'})) {
+        print <<EOF;
+load_l3.label L3 load
+load_l3.type GAUGE
+load_l3.draw LINE2
+load_l3.colour 0000ff
+EOF
+      }
+    }
+    # L1 input graph
+    if(defined($ups_data{'input.L1-N.voltage'}) or defined($ups_data{'input.L1.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_input_l1
+graph_title $ups_name - L1 input
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'input.L1-N.voltage'})) {
+        print <<EOF;
+input_l1_voltage.label L1 input voltage
+input_l1_voltage.type GAUGE
+input_l1_voltage.draw LINE2
+input_l1_voltage.colour 00ff00
+input_l1_voltage.warning $in_voltage_warning_min:$in_voltage_warning_max
+input_l1_voltage.critical $in_voltage_critical_min:$in_voltage_critical_max
+EOF
+      }
+      if(defined($ups_data{'input.L1.frequency'})) {
+        print <<EOF;
+input_l1_frequency.label L1 input frequency
+input_l1_frequency.type GAUGE
+input_l1_frequency.draw LINE2
+input_l1_frequency.colour 0000ff
+EOF
+      }
+    }
+    # L2 input graph
+    if(defined($ups_data{'input.L2-N.voltage'}) or defined($ups_data{'input.L2.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_input_l2
+graph_title $ups_name - L2 input
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'input.L2-N.voltage'})) {
+        print <<EOF;
+input_l2_voltage.label L2 input voltage
+input_l2_voltage.type GAUGE
+input_l2_voltage.draw LINE2
+input_l2_voltage.colour 00ff00
+input_l2_voltage.warning $in_voltage_warning_min:$in_voltage_warning_max
+input_l2_voltage.critical $in_voltage_critical_min:$in_voltage_critical_max
+EOF
+      }
+      if(defined($ups_data{'input.L2.frequency'})) {
+        print <<EOF;
+input_l2_frequency.label L2 input frequency
+input_l2_frequency.type GAUGE
+input_l2_frequency.draw LINE2
+input_l2_frequency.colour 0000ff
+EOF
+      }
+    }
+    # L3 input graph
+    if(defined($ups_data{'input.L3-N.voltage'}) or defined($ups_data{'input.L3.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_input_l3
+graph_title $ups_name - L3 input
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'input.L3-N.voltage'})) {
+        print <<EOF;
+input_l3_voltage.label L3 input voltage
+input_l3_voltage.type GAUGE
+input_l3_voltage.draw LINE2
+input_l3_voltage.colour 00ff00
+input_l3_voltage.warning $in_voltage_warning_min:$in_voltage_warning_max
+input_l3_voltage.critical $in_voltage_critical_min:$in_voltage_critical_max
+EOF
+      }
+      if(defined($ups_data{'input.L3.frequency'})) {
+        print <<EOF;
+input_l3_frequency.label L3 input frequency
+input_l3_frequency.type GAUGE
+input_l3_frequency.draw LINE2
+input_l3_frequency.colour 0000ff
+EOF
+      }
+    }
+    # L1 output graph
+    if(defined($ups_data{'output.L1-N.voltage'}) or defined($ups_data{'output.L1.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_output_l1
+graph_title $ups_name - L1 output
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'output.L1-N.voltage'})) {
+        print <<EOF;
+output_l1_voltage.label L1 output voltage
+output_l1_voltage.type GAUGE
+output_l1_voltage.draw LINE2
+output_l1_voltage.colour 00ff00
+EOF
+      }
+      if(defined($ups_data{'output.L1.frequency'})) {
+        print <<EOF;
+output_l1_frequency.label L1 output frequency
+output_l1_frequency.type GAUGE
+output_l1_frequency.draw LINE2
+output_l1_frequency.colour 0000ff
+EOF
+      }
+    }
+    # L2 output graph
+    if(defined($ups_data{'output.L2-N.voltage'}) or defined($ups_data{'output.L2.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_output_l2
+graph_title $ups_name - L2 output
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'output.L2-N.voltage'})) {
+        print <<EOF;
+output_l2_voltage.label L2 output voltage
+output_l2_voltage.type GAUGE
+output_l2_voltage.draw LINE2
+output_l2_voltage.colour 00ff00
+EOF
+      }
+      if(defined($ups_data{'output.L2.frequency'})) {
+        print <<EOF;
+output_l2_frequency.label L2 output frequency
+output_l2_frequency.type GAUGE
+output_l2_frequency.draw LINE2
+output_l2_frequency.colour 0000ff
+EOF
+      }
+    }
+    # L3 output graph
+    if(defined($ups_data{'output.L3-N.voltage'}) or defined($ups_data{'output.L3.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_output_l3
+graph_title $ups_name - L3 output
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'output.L3-N.voltage'})) {
+        print <<EOF;
+output_l3_voltage.label L3 output voltage
+output_l3_voltage.type GAUGE
+output_l3_voltage.draw LINE2
+output_l3_voltage.colour 00ff00
+EOF
+      }
+      if(defined($ups_data{'output.L3.frequency'})) {
+        print <<EOF;
+output_l3_frequency.label L3 output frequency
+output_l3_frequency.type GAUGE
+output_l3_frequency.draw LINE2
+output_l3_frequency.colour 0000ff
+EOF
+      }
+    }
+  }
+  # not 3-phase device so its 1-phase
+  else {
+    # Load percentage graph
+    if(defined($ups_data{'ups.load'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_load
+graph_title $ups_name - load
+graph_args --base 1024 --lower-limit 0
+graph_vlabel %
+graph_scale no
+graph_category ups
+load.label Load
+load.type GAUGE
+load.draw LINE2
+load.colour ff0000
+EOF
+    }
+    # Input graph
+    if(defined($ups_data{'input.voltage'}) or defined($ups_data{'input.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_input
+graph_title $ups_name - input
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'input.voltage'})) {
+        print <<EOF;
+input_voltage.label Input voltage
+input_voltage.type GAUGE
+input_voltage.draw LINE2
+input_voltage.colour 00ff00
+input_voltage.warning $in_voltage_warning_min:$in_voltage_warning_max
+input_voltage.critical $in_voltage_critical_min:$in_voltage_critical_max
+EOF
+      }
+      if(defined($ups_data{'input.frequency'})) {
+        print <<EOF;
+input_frequency.label Input frequency
+input_frequency.type GAUGE
+input_frequency.draw LINE2
+input_frequency.colour 0000ff
+EOF
+      }
+    }
+    # Output graph
+    if(defined($ups_data{'output.voltage'}) or defined($ups_data{'output.frequency'})) {
+      print <<EOF;
+multigraph nut_$graph_name\_output
+graph_title $ups_name - output
+graph_args --base 1024 --lower-limit 0
+graph_scale no
+graph_vlabel V / Hz
+graph_category ups
+EOF
+      if(defined($ups_data{'output.voltage'})) {
+        print <<EOF;
+output_voltage.label Output voltage
+output_voltage.type GAUGE
+output_voltage.draw LINE2
+output_voltage.colour 00ff00
+EOF
+      }
+      if(defined($ups_data{'output.frequency'})) {
+        print <<EOF;
+output_frequency.label Output frequency
+output_frequency.type GAUGE
+output_frequency.draw LINE2
+output_frequency.colour 0000ff
+EOF
+      }
+    }
+  }
+  exit(0);
+}
+
+$graph_name =~ s/[^a-zA-Z0-9]/_/g;
+if(defined($ups_data{'battery.charge'}) or defined($ups_data{'battery.runtime'})) {
+  print("multigraph nut_" . $graph_name . "_battery\n");
+  if(defined($ups_data{'battery.charge'})) {
+    print("battery_charge.value " . $ups_data{'battery.charge'} . "\n");
+  }
+  if(defined($ups_data{'battery.runtime'})) {
+    print("battery_runtime.value " . ($ups_data{'battery.runtime'} / 60) . "\n");
+  }
+}
+if(defined($ups_data{'battery.temperature'}) or defined($ups_data{'ambient.temperature'}) or defined($ups_data{'ups.temperature'})) {
+  print("multigraph nut_" . $graph_name . "_temperatures\n");
+  if(defined($ups_data{'battery.temperature'})) {
+    print("battery_temperature.value " . $ups_data{'battery.temperature'} . "\n");
+  }
+  if(defined($ups_data{'ups.temperature'})) {
+    print("ups_temperature.value " . $ups_data{'ups.temperature'} . "\n");
+  }
+  if(defined($ups_data{'ambient.temperature'})) {
+    print("ambient_temperature.value " . $ups_data{'ambient.temperature'} . "\n");
+  }
+}
+if(defined($ups_data{'battery.voltage'})) {
+  print("multigraph nut_" . $graph_name . "_battery_voltage\n");
+  print("battery_voltage.value " . $ups_data{'battery.voltage'} . "\n");
+}
+if(defined($ups_data{'input.phases'}) and $ups_data{'input.phases'} == 3) {
+  if(defined($ups_data{'output.L1.power.percent'}) or defined($ups_data{'output.L2.power.percent'}) or defined($ups_data{'output.L3.power.percent'})) {
+    print("multigraph nut_" . $graph_name . "_load\n");
+    if(defined($ups_data{'output.L1.power.percent'})) {
+      print("load_l1.value " . $ups_data{'output.L1.power.percent'} . "\n");
+    }
+    if(defined($ups_data{'output.L2.power.percent'})) {
+      print("load_l2.value " . $ups_data{'output.L2.power.percent'} . "\n");
+    }
+    if(defined($ups_data{'output.L3.power.percent'})) {
+      print("load_l3.value " . $ups_data{'output.L3.power.percent'} . "\n");
+    }
+  }
+  if(defined($ups_data{'input.L1-N.voltage'}) or defined($ups_data{'input.L1.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_input_l1\n");
+    if(defined($ups_data{'input.L1-N.voltage'})) {
+      print("input_l1_voltage.value " . $ups_data{'input.L1-N.voltage'} . "\n");
+    }
+    if(defined($ups_data{'input.L1.frequency'})) {
+      print("input_l1_frequency.value " . $ups_data{'input.L1.frequency'} . "\n");
+    }
+  }
+  if(defined($ups_data{'input.L2-N.voltage'}) or defined($ups_data{'input.L2.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_input_l2\n");
+    if(defined($ups_data{'input.L2-N.voltage'})) {
+      print("input_l2_voltage.value " . $ups_data{'input.L2-N.voltage'} . "\n");
+    }
+    if(defined($ups_data{'input.L2.frequency'})) {
+      print("input_l2_frequency.value " . $ups_data{'input.L2.frequency'} . "\n");
+    }
+  }
+  if(defined($ups_data{'input.L3-N.voltage'}) or defined($ups_data{'input.L3.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_input_l3\n");
+    if(defined($ups_data{'input.L3-N.voltage'})) {
+      print("input_l3_voltage.value " . $ups_data{'input.L3-N.voltage'} . "\n");
+    }
+    if(defined($ups_data{'input.L3.frequency'})) {
+      print("input_l3_frequency.value " . $ups_data{'input.L3.frequency'} . "\n");
+    }
+  }
+  if(defined($ups_data{'output.L1-N.voltage'}) or defined($ups_data{'output.L1.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_output_l1\n");
+    if(defined($ups_data{'output.L1-N.voltage'})) {
+      print("output_l1_voltage.value " . $ups_data{'output.L1-N.voltage'} . "\n");
+    }
+    if(defined($ups_data{'output.L1.frequency'})) {
+      print("output_l1_frequency.value " . $ups_data{'output.L1.frequency'} . "\n");
+    }
+  }
+  if(defined($ups_data{'output.L2-N.voltage'}) or defined($ups_data{'output.L2.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_output_l2\n");
+    if(defined($ups_data{'output.L2-N.voltage'})) {
+      print("output_l2_voltage.value " . $ups_data{'output.L2-N.voltage'} . "\n");
+    }
+    if(defined($ups_data{'output.L2.frequency'})) {
+      print("output_l2_frequency.value " . $ups_data{'output.L2.frequency'} . "\n");
+    }
+  }
+  if(defined($ups_data{'output.L3-N.voltage'}) or defined($ups_data{'output.L3.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_output_l3\n");
+    if(defined($ups_data{'output.L3-N.voltage'})) {
+      print("output_l3_voltage.value " . $ups_data{'output.L3-N.voltage'} . "\n");
+    }
+    if(defined($ups_data{'output.L3.frequency'})) {
+      print("output_l3_frequency.value " . $ups_data{'output.L3.frequency'} . "\n");
+    }
+  }
+}
+else {
+  if(defined($ups_data{'ups.load'})) {
+    print("multigraph nut_" . $graph_name . "_load\n");
+    print("load.value " . $ups_data{'ups.load'} . "\n");
+  }
+  if(defined($ups_data{'input.voltage'}) or defined($ups_data{'input.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_input\n");
+    if(defined($ups_data{'input.voltage'})) {
+      print("input_voltage.value " . $ups_data{'input.voltage'} . "\n");
+    }
+    if(defined($ups_data{'input.frequency'})) {
+      print("input_frequency.value " . $ups_data{'input.frequency'} . "\n");
+    }
+  }
+  if(defined($ups_data{'output.voltage'}) or defined($ups_data{'output.frequency'})) {
+    print("multigraph nut_" . $graph_name . "_output\n");
+    if(defined($ups_data{'output.voltage'})) {
+      print("output_voltage.value " . $ups_data{'output.voltage'} . "\n");
+    }
+    if(defined($ups_data{'output.frequency'})) {
+      print("output_frequency.value " . $ups_data{'output.frequency'} . "\n");
+    }
+  }
+}
+
+exit(0);
