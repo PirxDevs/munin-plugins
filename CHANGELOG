@@ -1,6 +1,13 @@
-* 20151120.01
+* 20151126.01
+  - renamed ups plugin to nut and reworked as wildcard plugin with simplified
+    configuration scheme (warning: on existing installs plugin reconfiguration
+    is required to make it working again)
   - added snmp_host plugin for monitoring CPU, memory, swap and storage usage
     via SNMP
+  - added hq_dell_omsa plugin for monitoring fan and temperature sensors
+    reported by Dell OpenManage Server Administrator
+  - added hq_sensors plugin for monitoring fan and temperature sensors
+    reported by lm_sensors
   - bunch of small/cosmetic fixes like descriptions, code comments, visual
     fixes etc.
 
