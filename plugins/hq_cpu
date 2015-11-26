@@ -203,7 +203,7 @@ exit(0);
 sub read_proc_stat() {
   my $stat_fd;
   if(!open($stat_fd, "</proc/stat")) {
-    print("Can't read /proc/stat\n");
+    print("Error: can't read /proc/stat.\n");
     exit(1);
   }
   STAT_READ_LOOP: while(defined(my $line=<$stat_fd>)) {
