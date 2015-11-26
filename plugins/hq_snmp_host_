@@ -29,8 +29,7 @@ Linux system with access to remote host through SNMP.
 
 This plugin requires special configuration to work properly. For each
 SNMP host you must configure name which will be used by munin-node,
-hostname or ip address and SNMP community
-name:
+hostname or ip address and SNMP community name:
 
 [hq_snmp_host_*]
   env.host1_name host1.domain.com
