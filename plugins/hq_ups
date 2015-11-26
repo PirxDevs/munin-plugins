@@ -18,7 +18,7 @@
 
 =head1 NAME
 
-hq_ups - Munin plugin to monitor UPS devices via NUT
+hq_ups - Munin plugin to monitor UPS devices via NUT.
 
 =head1 APPLICABLE SYSTEMS
 

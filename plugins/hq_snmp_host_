@@ -19,7 +19,7 @@
 =head1 NAME
 
 hq_snmp_host_ - Munin wildcard plugin to monitor host CPU, memory, swap
-and storage via SNMP
+and storage via SNMP.
 
 =head1 APPLICABLE SYSTEMS
 
