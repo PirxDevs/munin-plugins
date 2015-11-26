@@ -97,7 +97,7 @@ need_multigraph();
 my ($graph_name) = $0 =~ /.*\/hq_snmp_host_(.*)$/;
 
 if(!defined($graph_name) or $graph_name eq "") {
-  print("Error: invalid symlink name\n");
+  print("Error: invalid symlink name.\n");
   exit(1);
 }
 
@@ -150,7 +150,7 @@ if(defined($ENV{$graph_name . '_community'})) {
 }
 
 if(!defined($host_name) or $host_name eq "" or !defined($host_address) or $host_address eq "" or !defined($host_community) or $host_community eq "") {
-  print("Error: incomplete configuration\n");
+  print("Error: incomplete configuration.\n");
   exit(1);
 }
 
