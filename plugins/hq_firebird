@@ -18,7 +18,7 @@
 
 =head1 NAME
 
-hq_firebird - Munin plugin to monitor Firebird databases
+hq_firebird - Munin plugin to monitor Firebird databases.
 
 =head1 APPLICABLE SYSTEMS
 
