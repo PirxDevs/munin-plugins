@@ -57,7 +57,6 @@ GPLv3
 use strict;
 use warnings;
 use Munin::Plugin;
-use Data::Dumper;
 
 # Handle autoconf
 if(defined($ARGV[0]) and $ARGV[0] eq 'autoconf') {
