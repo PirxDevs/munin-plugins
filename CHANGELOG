@@ -1,4 +1,4 @@
-* 20151126.01
+* 20151127.01
   - renamed ups plugin to nut and reworked as wildcard plugin with simplified
     configuration scheme (warning: on existing installs plugin reconfiguration
     is required to make it working again)
