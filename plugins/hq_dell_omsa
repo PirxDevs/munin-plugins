@@ -162,7 +162,7 @@ graph_category sensors
 EOF
     foreach my $temp (sort keys $sensors{'temps'}) {
       print <<EOF;
-temperature_$temp.label Temperature
+temperature_$temp.label $sensors{'temps'}{$temp}{'name'}
 temperature_$temp.type GAUGE
 temperature_$temp.draw LINE2
 EOF
