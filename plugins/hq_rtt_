@@ -172,10 +172,6 @@ if(open($exec_fd, "ping -c10 -s500 -I " . $src_ip . " " . $dst_ip . " -q 2>/dev/
     }
   }
   close($exec_fd);
-  if($? >> 8 != 0) {
-    print("Error runnin ping command. Exiting.\n");
-    exit(1);
-  }
 }
 else {
   print("Error running ping command. Exiting.\n");
