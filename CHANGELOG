@@ -1,3 +1,12 @@
+* 20151218.01
+  - fix temperature graphs labels in dell_omsa plugin
+  - don't check ping command exit code in rtt plugin, it is non-zero if
+    destination can't be reached and was causing empty graph while ping loss
+    of %100 should be drawn
+  - don't check df command exit code in storage plugin, it is non-zero if
+    there are some stale entries in mtab and was causing empty graphs in such
+    cases, also was making storage graphs disappear from Munin dashboard
+
 * 20151127.01
   - renamed ups plugin to nut and reworked as wildcard plugin with simplified
     configuration scheme (warning: on existing installs plugin reconfiguration
