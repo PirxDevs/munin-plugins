@@ -40,7 +40,7 @@ Default thresholds are 90% for warning and 95% for critical.
 
 =head1 VERSION
 
-  20151117.01
+  20151218.01
 
 =head1 MAGIC MARKERS
 
@@ -103,10 +103,6 @@ if(open($exec_fd, "df -P -l 2>/dev/null |")) {
     };
   }
   close($exec_fd);
-  if($? >> 8 != 0) {
-    print("Error running df command. Exiting.\n");
-    exit(1);
-  }
 }
 else {
   print("Error running df command. Exiting.\n");
