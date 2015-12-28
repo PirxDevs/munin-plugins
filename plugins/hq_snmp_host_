@@ -57,7 +57,7 @@ Add following to your munin-node config if necessary:
 
 =head1 VERSION
 
-  20151123.01
+  20151228.01
 
 =head1 MAGIC MARKERS
 
@@ -173,7 +173,7 @@ my $system;
 
 %snmp_data = %{walk_oids($session, "1.3.6.1.2.1.1.1")};
 if(defined($snmp_data{'1.3.6.1.2.1.1.1.0'})) {
-  if($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /Software: Windows Version/) {
+  if($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /Software: Windows .*Version/) {
     $system = "windows";
   }
   elsif($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /^Linux/) {
@@ -262,10 +262,23 @@ my %netifs;
 foreach my $oid (sort keys %snmp_data) {
   my ($key, $id) = $oid =~ m/^1\.3\.6\.1\.2\.1\.2\.2\.1\.(\d+)\.(\d+)$/;
   if($key eq "1") {
-    $netifs{$id}{'name'} = $session->get_request(-varbindlist => ["1.3.6.1.2.1.31.1.1.1.1." . $id])->{"1.3.6.1.2.1.31.1.1.1.1." . $id};
-    $netifs{$id}{'name'} =~ s/(\s+|\x00)$//;
-    $netifs{$id}{'alias'} = $session->get_request(-varbindlist => ["1.3.6.1.2.1.31.1.1.1.18." . $id])->{"1.3.6.1.2.1.31.1.1.1.18." . $id};
-    $netifs{$id}{'alias'} =~ s/(\s+|\x00)$//;
+    my $if_data;
+    $if_data = $session->get_request(-varbindlist => ["1.3.6.1.2.1.31.1.1.1.1." . $id]);
+    if(defined($if_data->{"1.3.6.1.2.1.31.1.1.1.1." . $id}) and $if_data->{"1.3.6.1.2.1.31.1.1.1.1." . $id} ne "") {
+      $netifs{$id}{'name'} = $if_data->{"1.3.6.1.2.1.31.1.1.1.1." . $id};
+      $netifs{$id}{'name'} =~ s/(\s+|\x00)$//;
+    }
+    else {
+      $netifs{$id}{'name'} = "eth_" . $id;
+    }
+    $if_data = $session->get_request(-varbindlist => ["1.3.6.1.2.1.31.1.1.1.18." . $id]);
+    if(defined($if_data->{"1.3.6.1.2.1.31.1.1.1.18." . $id}) and $if_data->{"1.3.6.1.2.1.31.1.1.1.18." . $id} ne "") {
+      $netifs{$id}{'alias'} = $if_data->{"1.3.6.1.2.1.31.1.1.1.18." . $id};
+      $netifs{$id}{'alias'} =~ s/(\s+|\x00)$//;
+    }
+    else {
+      $netifs{$id}{'alias'} = "Interface #" . $id;
+    }
   }
   if($key eq "2") {
     $netifs{$id}{'description'} = $snmp_data{$oid};
