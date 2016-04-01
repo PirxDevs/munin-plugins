@@ -57,7 +57,7 @@ Add following to your munin-node config if necessary:
 
 =head1 VERSION
 
-  20151228.01
+  20160401.01
 
 =head1 MAGIC MARKERS
 
@@ -181,6 +181,9 @@ if(defined($snmp_data{'1.3.6.1.2.1.1.1.0'})) {
   }
   elsif($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /^VMware ESXi/) {
     $system = "esxi";
+  }
+  elsif($snmp_data{'1.3.6.1.2.1.1.1.0'} =~ /^RouterOS/) {
+    $system = "routeros";
   }
 }
 
@@ -478,6 +481,17 @@ EOF
       }
       $label = $devices{$device_id}{'description'};
     }
+    elsif($system eq "routeros") {
+      if($devices{$device_id}{'description'} eq "system disk") {
+        $disk = "system";
+      }
+      else {
+        $disk = $devices{$device_id}{'description'};
+        $disk =~ s!^/!!g;
+        $disk =~ s/[^a-zA-Z0-9]/_/g;
+      }
+      $label = $devices{$device_id}{'description'};
+    }
     my $warning = $devices{$device_id}{'size'} * $disk_warning / 100;
     my $critical = $devices{$device_id}{'size'} * $disk_critical / 100;
     my $used_color = "0000ff";
@@ -624,6 +638,16 @@ EOF
     elsif($system eq "linux" or $system eq "esxi") {
       if($devices{$device_id}{'description'} eq "/") {
         $disk = "root";
+      }
+      else {
+        $disk = $devices{$device_id}{'description'};
+        $disk =~ s!^/!!g;
+        $disk =~ s/[^a-zA-Z0-9]/_/g;
+      }
+    }
+    elsif($system eq "routeros") {
+      if($devices{$device_id}{'description'} eq "system disk") {
+        $disk = "system";
       }
       else {
         $disk = $devices{$device_id}{'description'};
