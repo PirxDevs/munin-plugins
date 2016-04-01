@@ -1,6 +1,7 @@
 * 
-  - verify SNMP get results when querying network interfaces, fixex monitoring
-    of Windows XP hosts
+  - verify SNMP get results when querying network interfaces, fixes monitoring
+    of Windows XP hosts in snmp_host plugin
+  - added basic support for RouterOS to snmp_host
 
 * 20151218.01
   - fix temperature graphs labels in dell_omsa plugin
