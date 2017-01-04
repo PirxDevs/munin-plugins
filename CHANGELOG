@@ -1,4 +1,7 @@
 * 
+  - dereference hash of hashes when using keys
+
+* 20161230.01
   - verify SNMP get results when querying network interfaces, fixes monitoring
     of Windows XP hosts in snmp_host plugin
   - added basic support for RouterOS to snmp_host
