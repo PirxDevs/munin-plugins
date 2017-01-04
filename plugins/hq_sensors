@@ -118,7 +118,7 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
   foreach my $chip_id (sort keys %sensors) {
     my $graph_name = "sensor_" . $chip_id;
     $graph_name =~ s![/\-\.]!_!g;
-    if(defined($sensors{$chip_id}{'fans'}) and scalar(keys $sensors{$chip_id}{'fans'})) {
+    if(defined($sensors{$chip_id}{'fans'}) and scalar(keys %{$sensors{$chip_id}{'fans'}})) {
       print <<EOF;
 multigraph $graph_name\_fans
 graph_title Sensor \#$chip_id fans
@@ -127,7 +127,7 @@ graph_scale no
 graph_vlabel RPM
 graph_category sensors
 EOF
-      foreach my $sensor_id (sort keys $sensors{$chip_id}{'fans'}) {
+      foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'fans'}}) {
         print <<EOF;
 $sensors{$chip_id}{'fans'}{$sensor_id}{'name'}.label $sensors{$chip_id}{'fans'}{$sensor_id}{'description'}
 $sensors{$chip_id}{'fans'}{$sensor_id}{'name'}.type GAUGE
@@ -135,7 +135,7 @@ $sensors{$chip_id}{'fans'}{$sensor_id}{'name'}.draw LINE2
 EOF
       }
     }
-    if(defined($sensors{$chip_id}{'temps'}) and scalar(keys $sensors{$chip_id}{'temps'})) {
+    if(defined($sensors{$chip_id}{'temps'}) and scalar(keys %{$sensors{$chip_id}{'temps'}})) {
       print <<EOF;
 multigraph $graph_name\_temps
 graph_title Sensor \#$chip_id temperatures
@@ -144,7 +144,7 @@ graph_scale no
 graph_vlabel degrees celsius
 graph_category sensors
 EOF
-      foreach my $sensor_id (sort keys $sensors{$chip_id}{'temps'}) {
+      foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'temps'}}) {
         print <<EOF;
 $sensors{$chip_id}{'temps'}{$sensor_id}{'name'}.label $sensors{$chip_id}{'temps'}{$sensor_id}{'description'}
 $sensors{$chip_id}{'temps'}{$sensor_id}{'name'}.type GAUGE
@@ -159,21 +159,21 @@ EOF
 foreach my $chip_id (sort keys %sensors) {
   my $graph_name = "sensor_" . $chip_id;
   $graph_name =~ s![/\-\.]!_!g;
-  if(defined($sensors{$chip_id}{'fans'}) and scalar(keys $sensors{$chip_id}{'fans'})) {
+  if(defined($sensors{$chip_id}{'fans'}) and scalar(keys %{$sensors{$chip_id}{'fans'}})) {
       print <<EOF;
 multigraph $graph_name\_fans
 EOF
-    foreach my $sensor_id (sort keys $sensors{$chip_id}{'fans'}) {
+    foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'fans'}}) {
       print <<EOF;
 $sensors{$chip_id}{'fans'}{$sensor_id}{'name'}.value $sensors{$chip_id}{'fans'}{$sensor_id}{'value'}
 EOF
     }
   }
-  if(defined($sensors{$chip_id}{'temps'}) and scalar(keys $sensors{$chip_id}{'temps'})) {
+  if(defined($sensors{$chip_id}{'temps'}) and scalar(keys %{$sensors{$chip_id}{'temps'}})) {
     print <<EOF;
 multigraph $graph_name\_temps
 EOF
-    foreach my $sensor_id (sort keys $sensors{$chip_id}{'temps'}) {
+    foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'temps'}}) {
       print <<EOF;
 $sensors{$chip_id}{'temps'}{$sensor_id}{'name'}.value $sensors{$chip_id}{'temps'}{$sensor_id}{'value'}
 EOF

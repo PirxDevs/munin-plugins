@@ -129,7 +129,7 @@ else {
 
 # Handle config
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
-  if(defined($sensors{'fans'}) and scalar(keys $sensors{'fans'})) {
+  if(defined($sensors{'fans'}) and scalar(keys %{$sensors{'fans'}})) {
     print <<EOF;
 multigraph dell_omsa_fans
 graph_title Fans reported by Dell OMSA
@@ -138,7 +138,7 @@ graph_scale no
 graph_vlabel RPM
 graph_category sensors
 EOF
-    foreach my $fan (sort keys $sensors{'fans'}) {
+    foreach my $fan (sort keys %{$sensors{'fans'}}) {
       print <<EOF;
 fan_$fan\_rpm.label $sensors{'fans'}{$fan}{'name'}
 fan_$fan\_rpm.type GAUGE
@@ -151,7 +151,7 @@ EOF
       }
     }
   }
-  if(defined($sensors{'temps'}) and scalar(keys $sensors{'temps'})) {
+  if(defined($sensors{'temps'}) and scalar(keys %{$sensors{'temps'}})) {
     print <<EOF;
 multigraph dell_omsa_temperatures
 graph_title Temperatures reported by Dell OMSA
@@ -160,7 +160,7 @@ graph_scale no
 graph_vlabel degrees celsius
 graph_category sensors
 EOF
-    foreach my $temp (sort keys $sensors{'temps'}) {
+    foreach my $temp (sort keys %{$sensors{'temps'}}) {
       print <<EOF;
 temperature_$temp.label $sensors{'temps'}{$temp}{'name'}
 temperature_$temp.type GAUGE
@@ -181,15 +181,15 @@ EOF
   exit(0);
 }
 
-if(defined($sensors{'fans'}) and scalar(keys $sensors{'fans'})) {
+if(defined($sensors{'fans'}) and scalar(keys %{$sensors{'fans'}})) {
   print("multigraph dell_omsa_fans\n");
-  foreach my $fan (sort keys $sensors{'fans'}) {
+  foreach my $fan (sort keys %{$sensors{'fans'}}) {
     print("fan_" . $fan . "_rpm.value " . $sensors{'fans'}{$fan}{'value'} . "\n");
   }
 }
-if(defined($sensors{'temps'}) and scalar(keys $sensors{'temps'})) {
+if(defined($sensors{'temps'}) and scalar(keys %{$sensors{'temps'}})) {
   print("multigraph dell_omsa_temperatures\n");
-  foreach my $temp (sort keys $sensors{'temps'}) {
+  foreach my $temp (sort keys %{$sensors{'temps'}}) {
     print("temperature_" . $temp . ".value " . $sensors{'temps'}{$temp}{'value'} . "\n");
   }
 }
