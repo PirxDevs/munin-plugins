@@ -1,5 +1,7 @@
-* 
+* 20181011.01
   - dereference hash of hashes when using keys
+  - try to workaround negative disk sizes for large volumes reported by
+    windows in snmp_host
 
 * 20161230.01
   - verify SNMP get results when querying network interfaces, fixes monitoring

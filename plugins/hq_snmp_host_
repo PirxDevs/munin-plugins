@@ -246,6 +246,9 @@ foreach my $oid (sort keys %snmp_data) {
   }
   if($key eq "5") {
     $devices{$id}{'size'} = $snmp_data{$oid};
+    if($system eq "windows" and $devices{$id}{'size'} < 0) {
+      $devices{$id}{'size'} = 4294967296 - abs($devices{$id}{'size'});
+    }
   }
   if($key eq "6") {
     $devices{$id}{'used'} = $snmp_data{$oid};
