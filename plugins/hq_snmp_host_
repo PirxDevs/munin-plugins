@@ -57,7 +57,7 @@ Add following to your munin-node config if necessary:
 
 =head1 VERSION
 
-  20160401.01
+  20181011.01
 
 =head1 MAGIC MARKERS
 
