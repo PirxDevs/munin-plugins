@@ -31,9 +31,18 @@ You may need to specify path to sensors binary if its not on PATH:
 [hq_sensors]
   env.sensors /usr/local/bin/sensors
 
+You can also choose which sensors are monitored. For example to monitor
+just fan2 and temp3 on sensor #2 (and everything on other sensors):
+
+[hq_sensors]
+  env.sensor2=fan2;temp3
+
+Valid sensors names are: fan# for fans, temp# for temperatures and in#
+for voltages. Run 'sensor -A -u' for full list of sensors on your system.
+
 =head1 VERSION
 
-  20151124.01
+  20190108.01
 
 =head1 MAGIC MARKERS
 
@@ -70,8 +79,7 @@ my %sensors;
 my $exec_fd;
 
 my $sensors = $ENV{'sensors'} || "sensors";
-
-# Get fan sensors
+# Read sensors
 if(open($exec_fd, $sensors. " -A -u 2>/dev/null |")) {
   my $chip_id = 0;
   my $sensor_id = 0;
@@ -85,15 +93,30 @@ if(open($exec_fd, $sensors. " -A -u 2>/dev/null |")) {
       $sensor_description = $1;
     }
     elsif($line =~ m/^\s+[^\s]+:\s+.*$/) {
-      if($line =~ m/^\s+(temp[0-9]+)_input:\s+(.*)$/) {
-        $sensors{$chip_id}{'temps'}{$sensor_id}{'name'} = $1;
-        $sensors{$chip_id}{'temps'}{$sensor_id}{'value'} = $2;
-        $sensors{$chip_id}{'temps'}{$sensor_id}{'description'} = $sensor_description;
-      }
-      elsif($line =~ m/^\s+(fan[0-9]+)_input:\s+(.*)$/) {
-        $sensors{$chip_id}{'fans'}{$sensor_id}{'name'} = $1;
-        $sensors{$chip_id}{'fans'}{$sensor_id}{'value'} = $2;
-        $sensors{$chip_id}{'fans'}{$sensor_id}{'description'} = $sensor_description;
+      if($line =~ m/^\s+(fan|in|temp)[0-9]+_input:\s+.*$/) {
+        my @names;
+        if(defined($ENV{'sensor' . $chip_id})) {
+          @names = split(";", $ENV{'sensor' . $chip_id})
+        }
+        my ($sensor_name, $sensor_type, $sensor_value) = $line =~ m/^\s+((fan|in|temp)[0-9]+)_input:\s+(.*)$/;
+        my $sensor_group = "";
+        if($sensor_type eq "fan") { $sensor_group = "fans"; }
+        if($sensor_type eq "in") { $sensor_group = "voltages"; }
+        if($sensor_type eq "temp") { $sensor_group = "temps"; }
+        if($sensor_group ne "") {
+          my $skip = 0;
+          if(scalar(@names) > 0) {
+            $skip = 1;
+            foreach my $name (@names) {
+              if($name eq $sensor_name) { $skip = 0; }
+            }
+          }
+          if($skip == 0) {
+            $sensors{$chip_id}{$sensor_group}{$sensor_id}{'name'} = $sensor_name;
+            $sensors{$chip_id}{$sensor_group}{$sensor_id}{'value'} = $sensor_value;
+            $sensors{$chip_id}{$sensor_group}{$sensor_id}{'description'} = $sensor_description;
+          }
+        }
       }
     }
     else {
@@ -115,7 +138,7 @@ else {
 
 # Handle config
 if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
-  foreach my $chip_id (sort keys %sensors) {
+  SENSORS_CONFIG_LOOP: foreach my $chip_id (sort keys %sensors) {
     my $graph_name = "sensor_" . $chip_id;
     $graph_name =~ s![/\-\.]!_!g;
     if(defined($sensors{$chip_id}{'fans'}) and scalar(keys %{$sensors{$chip_id}{'fans'}})) {
@@ -152,6 +175,23 @@ $sensors{$chip_id}{'temps'}{$sensor_id}{'name'}.draw LINE2
 EOF
       }
     }
+    if(defined($sensors{$chip_id}{'voltages'}) and scalar(keys %{$sensors{$chip_id}{'voltages'}})) {
+      print <<EOF;
+multigraph $graph_name\_voltages
+graph_title Sensor \#$chip_id voltages
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_vlabel V
+graph_category sensors
+EOF
+      foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'voltages'}}) {
+        print <<EOF;
+$sensors{$chip_id}{'voltages'}{$sensor_id}{'name'}.label $sensors{$chip_id}{'voltages'}{$sensor_id}{'description'}
+$sensors{$chip_id}{'voltages'}{$sensor_id}{'name'}.type GAUGE
+$sensors{$chip_id}{'voltages'}{$sensor_id}{'name'}.draw LINE2
+EOF
+      }
+    }
   }
   exit(0);
 }
@@ -176,6 +216,16 @@ EOF
     foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'temps'}}) {
       print <<EOF;
 $sensors{$chip_id}{'temps'}{$sensor_id}{'name'}.value $sensors{$chip_id}{'temps'}{$sensor_id}{'value'}
+EOF
+    }
+  }
+  if(defined($sensors{$chip_id}{'voltages'}) and scalar(keys %{$sensors{$chip_id}{'voltages'}})) {
+    print <<EOF;
+multigraph $graph_name\_voltages
+EOF
+    foreach my $sensor_id (sort keys %{$sensors{$chip_id}{'voltages'}}) {
+      print <<EOF;
+$sensors{$chip_id}{'voltages'}{$sensor_id}{'name'}.value $sensors{$chip_id}{'voltages'}{$sensor_id}{'value'}
 EOF
     }
   }

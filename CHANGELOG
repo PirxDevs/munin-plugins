@@ -1,3 +1,7 @@
+* 20190108.01
+  - updated sensors plugin: monitor voltages, added support for monitoring only
+    selected sensors
+
 * 20181011.01
   - dereference hash of hashes when using keys
   - try to workaround negative disk sizes for large volumes reported by
