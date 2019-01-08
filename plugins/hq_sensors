@@ -35,7 +35,7 @@ You can also choose which sensors are monitored. For example to monitor
 just fan2 and temp3 on sensor #2 (and everything on other sensors):
 
 [hq_sensors]
-  env.sensor2=fan2;temp3
+  env.sensor2 fan2;temp3
 
 Valid sensors names are: fan# for fans, temp# for temperatures and in#
 for voltages. Run 'sensor -A -u' for full list of sensors on your system.
