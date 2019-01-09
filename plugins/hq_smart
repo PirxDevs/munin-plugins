@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20151112.01
+  20190109.01
 
 =head1 MAGIC MARKERS
 
@@ -83,13 +83,6 @@ BLOCK_DEVS_LOOP: foreach my $block_dev (@block_devs) {
     my $device_type = `cat /sys/block/$block_dev/device/media 2>/dev/null`;
     chomp($device_type);
     if($device_type eq "cdrom" or $device_type eq "floppy") {
-      next(BLOCK_DEVS_LOOP);
-    }
-  }
-  if($block_dev =~ m/^sd[a-z]/) {
-    my $device_removable = `cat /sys/block/$block_dev/removable 2>/dev/null`;
-    chomp($device_removable);
-    if($device_removable eq "1") {
       next(BLOCK_DEVS_LOOP);
     }
   }
