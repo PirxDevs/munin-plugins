@@ -1,3 +1,7 @@
+*
+  - don't exclude /dev/sd* drives marked as removable in /sys/block from reading
+    smart data and monitoring, there are false-positives depending on hardware
+
 * 20190108.01
   - updated sensors plugin: monitor voltages, added support for monitoring only
     selected sensors
