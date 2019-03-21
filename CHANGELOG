@@ -1,4 +1,4 @@
-*
+* 20190321.01
   - don't exclude /dev/sd* drives marked as removable in /sys/block from reading
     smart data and monitoring, there are false-positives depending on hardware
   - include all SAS types when reading smart data
