@@ -1,3 +1,6 @@
+* 20201102.02
+  - fix graph definition for read and seek error rates
+
 * 20201102.01
   - monitor read and seek error rates if they're available
 
