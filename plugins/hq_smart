@@ -388,9 +388,7 @@ foreach my $id (keys %disks) {
         defined($disks{$id}{'smart'}{'197'}{'raw'}) or
         defined($disks{$id}{'smart'}{'198'}{'raw'}) or
         defined($disks{$id}{'smart'}{'10'}{'raw'}) or
-        defined($disks{$id}{'smart'}{'11'}{'raw'}) or
-        defined($disks{$id}{'smart'}{'1'}{'raw'}) or
-        defined($disks{$id}{'smart'}{'7'}{'raw'})
+        defined($disks{$id}{'smart'}{'11'}{'raw'})
       )) {
       print("multigraph disk_errors_$graph_name\n");
       if(defined($disks{$id}{'smart'}{'196'}{'raw'})) {
@@ -411,6 +409,12 @@ foreach my $id (keys %disks) {
       if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
         print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
       }
+    }
+    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (
+        defined($disks{$id}{'smart'}{'1'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'7'}{'raw'})
+      )) {
+      print("multigraph disk_error_rates_$graph_name\n");
       if(defined($disks{$id}{'smart'}{'1'}{'raw'})) {
         print("read_error_rate.value " . $disks{$id}{'smart'}{'1'}{'raw'} . "\n");
       }
