@@ -1,5 +1,5 @@
 * 20201102.01
-  - monitor read error and seek error rates if they're available
+  - monitor read and seek error rates if they're available
 
 * 20190321.01
   - don't exclude /dev/sd* drives marked as removable in /sys/block from reading
