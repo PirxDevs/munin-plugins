@@ -34,7 +34,7 @@ Just add following to your munin node configuration.
 
 =head1 VERSION
 
-  20190318.01
+  20201102.01
 
 =head1 MAGIC MARKERS
 
@@ -136,7 +136,14 @@ if(defined($ARGV[0]) and $ARGV[0] eq 'config') {
     my $graph_name = $id;
     $graph_name =~ s/[^a-zA-Z0-9]/_/g;
     if(defined($disks{$id}{'type'})) {
-      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (defined($disks{$id}{'smart'}{'196'}{'raw'}) or defined($disks{$id}{'smart'}{'5'}{'raw'}) or defined($disks{$id}{'smart'}{'197'}{'raw'}) or defined($disks{$id}{'smart'}{'198'}{'raw'}) or defined($disks{$id}{'smart'}{'10'}{'raw'}) or defined($disks{$id}{'smart'}{'11'}{'raw'}))) {
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (
+         defined($disks{$id}{'smart'}{'196'}{'raw'}) or
+         defined($disks{$id}{'smart'}{'5'}{'raw'}) or
+         defined($disks{$id}{'smart'}{'197'}{'raw'}) or
+         defined($disks{$id}{'smart'}{'198'}{'raw'}) or
+         defined($disks{$id}{'smart'}{'10'}{'raw'}) or
+         defined($disks{$id}{'smart'}{'11'}{'raw'})
+        )) {
         print <<EOF;
 multigraph disk_errors_$graph_name
 graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
@@ -197,6 +204,37 @@ calibration_retries.type GAUGE
 calibration_retries.draw LINE2
 calibration_retries.colour 00ffff
 calibration_retries.warning 0
+EOF
+        }
+      }
+      if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (
+         defined($disks{$id}{'smart'}{'1'}{'raw'}) or
+         defined($disks{$id}{'smart'}{'7'}{'raw'})
+        )) {
+        print <<EOF;
+multigraph disk_error_rates_$graph_name
+graph_title $disks{$id}{'model'} (s/n: $disks{$id}{'serial'})
+graph_args --base 1000 --lower-limit 0
+graph_scale no
+graph_vlabel error rate
+graph_category disk_smart
+EOF
+        if(defined($disks{$id}{'smart'}{'1'}{'raw'})) {
+          print <<EOF;
+read_error_rate.label Read error rate
+read_error_rate.type GAUGE
+read_error_rate.draw LINE2
+read_error_rate.colour ff0000
+read_error_rate.warning 0
+EOF
+        }
+        if(defined($disks{$id}{'smart'}{'7'}{'raw'})) {
+          print <<EOF;
+seek_error_rate.label Seek error rate
+seek_error_rate.type GAUGE
+seek_error_rate.draw LINE2
+seek_error_rate.colour 900000
+seek_error_rate.warning 0
 EOF
         }
       }
@@ -344,7 +382,16 @@ foreach my $id (keys %disks) {
   my $graph_name = $id;
   $graph_name =~ s/[^a-zA-Z0-9]/_/g;
   if(defined($disks{$id}{'type'})) {
-    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (defined($disks{$id}{'smart'}{'196'}{'raw'}) or defined($disks{$id}{'smart'}{'5'}{'raw'}) or defined($disks{$id}{'smart'}{'197'}{'raw'}) or defined($disks{$id}{'smart'}{'198'}{'raw'}) or defined($disks{$id}{'smart'}{'10'}{'raw'}) or defined($disks{$id}{'smart'}{'11'}{'raw'}))) {
+    if(($disks{$id}{'type'} eq "ATA" or $disks{$id}{'type'} eq "SATA") and (
+        defined($disks{$id}{'smart'}{'196'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'5'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'197'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'198'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'10'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'11'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'1'}{'raw'}) or
+        defined($disks{$id}{'smart'}{'7'}{'raw'})
+      )) {
       print("multigraph disk_errors_$graph_name\n");
       if(defined($disks{$id}{'smart'}{'196'}{'raw'})) {
         print("reallocation_events.value " . $disks{$id}{'smart'}{'196'}{'raw'} . "\n");
@@ -363,6 +410,12 @@ foreach my $id (keys %disks) {
       }
       if(defined($disks{$id}{'smart'}{'11'}{'raw'})) {
         print("calibration_retries.value " . $disks{$id}{'smart'}{'11'}{'raw'} . "\n");
+      }
+      if(defined($disks{$id}{'smart'}{'1'}{'raw'})) {
+        print("read_error_rate.value " . $disks{$id}{'smart'}{'1'}{'raw'} . "\n");
+      }
+      if(defined($disks{$id}{'smart'}{'7'}{'raw'})) {
+        print("seek_error_rate.value " . $disks{$id}{'smart'}{'7'}{'raw'} . "\n");
       }
     }
     if(($disks{$id}{'type'} =~ m/SAS / or $disks{$id}{'type'} =~ m/^Parallel SCSI/) and defined($disks{$id}{'defects'})) {
