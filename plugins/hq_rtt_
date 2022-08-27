@@ -50,7 +50,7 @@ ping command. Add following to your munin-node config if necessary:
 
 =head1 VERSION
 
-  20151117.01
+  20151201
 
 =head1 MAGIC MARKERS
 

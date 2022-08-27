@@ -41,7 +41,7 @@ for voltages. Run 'sensor -A -u' for full list of sensors on your system.
 
 =head1 VERSION
 
-  20190108.01
+  20190108
 
 =head1 MAGIC MARKERS
 
