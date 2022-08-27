@@ -1,3 +1,6 @@
+* 
+  - iostat has now 8 columns, fix parsing iostat output
+
 * 20201102.02
   - fix graph definition for read and seek error rates
 
