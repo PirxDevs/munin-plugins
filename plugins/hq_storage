@@ -17,7 +17,7 @@
 
 =head1 NAME
 
-hq_df_ - Munin plugin to monitor storage usage.
+hq_storage - Munin plugin to monitor storage usage.
 
 =head1 APPLICABLE SYSTEMS
 

@@ -17,7 +17,7 @@
 
 =head1 NAME
 
-hq_memory - Munin plugin to monitor network stats.
+hq_netstat - Munin plugin to monitor network stats.
 
 =head1 APPLICABLE SYSTEMS
 
