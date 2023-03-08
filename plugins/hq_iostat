@@ -79,7 +79,15 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
     if($line =~ m/^(fd|loop|ram|scd|sr)[0-9]/) {
       next(IOSTAT_READ_LOOP);
     }
-    my ($device, $tps, $kb_read_s, $kb_write_s, $kb_dscd_s, $kb_read, $kb_write, $kb_dscd) = $line =~ m/^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)[\s]+([\d]+)$/;
+    my @iostat_data = split(" ", $line);
+    $iostat_fields = $#iostat_data;
+    my ($device, $tps, $kb_read_s, $kb_write_s, $kb_dscd_s, $kb_read, $kb_write, $kb_dscd);
+    if($iostat_fields == 5) {
+      ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ m/^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)$/;
+    }
+    elsif($iostat_fields == 7) {
+      ($device, $tps, $kb_read_s, $kb_write_s, $kb_dscd_s, $kb_read, $kb_write, $kb_dscd) = $line =~ m/^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)[\s]+([\d]+)[\s]+([\d]+)$/;
+    }
     $device =~ s/^\s+|\s+$//g;
     my $device_name = "";
     # If device is hd* check its media type
