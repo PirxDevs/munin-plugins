@@ -1,3 +1,7 @@
+* 20230308
+  - plugins dell_omsa and firebird are no longer supported and were removed
+  - detect number of columns in iostat output
+
 * 20220827 
   - iostat has now 8 columns, fix parsing iostat output
   - license changed to Apache License 2.0
