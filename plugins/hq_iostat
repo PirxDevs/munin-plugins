@@ -80,7 +80,7 @@ if(open($iostat_fd, "iostat -d -k -p ALL 2>/dev/null |")) {
       next(IOSTAT_READ_LOOP);
     }
     my @iostat_data = split(" ", $line);
-    $iostat_fields = $#iostat_data;
+    my $iostat_fields = $#iostat_data;
     my ($device, $tps, $kb_read_s, $kb_write_s, $kb_dscd_s, $kb_read, $kb_write, $kb_dscd);
     if($iostat_fields == 5) {
       ($device, $tps, $kb_read_s, $kb_write_s, $kb_read, $kb_write) = $line =~ m/^(.*)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d\.]+)[\s]+([\d]+)$/;
