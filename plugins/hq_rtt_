@@ -42,6 +42,14 @@ can do this with following configuration:
 Now symlink hq_rtt_ as hq_rtt_wan in your munin plugins directory
 and thats all.
 
+You can also specify number of pings and packet size. More pings gives
+more accurate results, but also require more time to test. This may cause
+node processing timeout when more than 10 hosts are tested.
+
+[hq_rtt_*]
+  env.ping_count 5
+  env.packet_size 500
+
 Additionally on some systems root privileges may be required for running
 ping command. Add following to your munin-node config if necessary:
 
@@ -50,7 +58,7 @@ ping command. Add following to your munin-node config if necessary:
 
 =head1 VERSION
 
-  20151201
+  20230309
 
 =head1 MAGIC MARKERS
 
@@ -108,6 +116,8 @@ if(defined($ENV{$graph_name . '_loss_critical'})) {
 my $src_ip;
 my $dst_ip;
 my $title;
+my $ping_count = 5;
+my $packet_size = 500;
 if(defined($ENV{$graph_name . '_src_ip'})) {
   $src_ip = $ENV{$graph_name . '_src_ip'};
 }
@@ -116,6 +126,12 @@ if(defined($ENV{$graph_name . '_dst_ip'})) {
 }
 if(defined($ENV{$graph_name . '_title'})) {
   $title = $ENV{$graph_name . '_title'};
+}
+if(defined($ENV{'ping_count'})) {
+  $ping_count = $ENV{'ping_count'};
+}
+if(defined($ENV{'packet_size'})) {
+  $packet_size = $ENV{'packet_size'};
 }
 
 if(!defined($src_ip) or $src_ip eq "" or !defined($dst_ip) or $dst_ip eq "" or !defined($title) or $title eq "") {
@@ -161,7 +177,7 @@ $loss = "U";
 
 # Read and parse df output
 my $exec_fd;
-if(open($exec_fd, "ping -c10 -s500 -I " . $src_ip . " " . $dst_ip . " -q 2>/dev/null |")) {
+if(open($exec_fd, "ping -c " . $ping_count . " -s " . $packet_size . " -I " . $src_ip . " " . $dst_ip . " -q 2>/dev/null |")) {
   PING_READ_LOOP: while(defined(my $line=<$exec_fd>)) {
     if($line =~ /.*transmitted.*received.*\s+([0-9\.]+)% packet loss/) {
       $loss = $1;
