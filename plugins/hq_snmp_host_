@@ -34,7 +34,7 @@ hostname or ip address and SNMP community name:
   env.host1_name host1.domain.com
   env.host1_address 192.168.100.1
   env.host1_community public
-  env.host1_name host2.domain.com
+  env.host2_name host2.domain.com
   env.host2_address 192.168.100.2
   env.host2_community something
 
